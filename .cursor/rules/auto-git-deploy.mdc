@@ -1,0 +1,41 @@
+---
+description: Auto commit and push to GitHub after phases or significant changes (Netlify deploy)
+alwaysApply: true
+---
+
+# Auto Git Deploy Workflow
+
+After completing any **phase** or making **significant project changes**, automatically commit and push without asking the user.
+
+## When to commit
+
+- Phase completion (e.g. «Фаза N — старт» finished)
+- Bug fixes, new features, refactors, config/deploy changes
+- Do **not** commit for trivial chat-only answers, read-only reviews, or failed/aborted work
+
+## Repository
+
+- Remote: `https://github.com/gohnad54-blip/my-ai-synergy-project.git`
+- Branch: `main`
+- Verify `git remote -v` points to `gohnad54-blip/my-ai-synergy-project` before push
+
+## Workflow (every time, no user prompt)
+
+1. `git status` + `git diff` — review what changed
+2. `git add` relevant files (never `.env`, credentials, secrets)
+3. Commit with a **descriptive message** in English, focused on *why*:
+   - Phase: `feat(phase-N): short summary`
+   - Fix: `fix: short summary`
+   - Other: `chore:` / `docs:` / `refactor:` as appropriate
+4. `git push origin main`
+5. Confirm push success in the final reply (commit hash + branch)
+
+## Safety
+
+- Never force-push, amend pushed commits, or skip hooks unless user explicitly asks
+- If push fails (auth, conflict), diagnose and retry or report clearly — do not silently skip
+- If there are no changes, skip commit/push
+
+## Goal
+
+Each push triggers Netlify auto-deploy of the updated site.
