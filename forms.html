@@ -2,11 +2,19 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <title>Netlify Forms — account-request</title>
+  <title>Forms — account-request</title>
 </head>
 <body>
-  <!-- Standalone build-time registration for SPA /apply fetch submit -->
-  <form name="account-request" method="POST" data-netlify="true" netlify netlify-honeypot="bot-field">
+  <!-- Build-time registration for SPA /apply (Netlify scans this file on deploy) -->
+  <form
+    name="account-request"
+    method="POST"
+    action="/apply?success=1"
+    data-netlify="true"
+    netlify
+    netlify-honeypot="bot-field"
+    hidden
+  >
     <input type="hidden" name="form-name" value="account-request">
     <p hidden>
       <label>Don’t fill this out: <input name="bot-field"></label>

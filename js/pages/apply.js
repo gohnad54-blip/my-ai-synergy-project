@@ -3,31 +3,27 @@
 import { t } from '../core/i18n.js';
 import { setPageMeta } from '../ui/public.js';
 
-/** Must match name="account-request" in index.html / netlify-forms.html */
+/** Must match name + form-name in forms.html (Netlify Dashboard → Forms) */
 export const NETLIFY_FORM_NAME = 'account-request';
 
-/**
- * @returns {boolean}
- */
-function isSuccessUrl() {
-  const params = new URLSearchParams(window.location.search);
-  return params.has('success') || params.has('submitted');
-}
-
-function showSuccessState() {
-  document.getElementById('apply-success')?.classList.remove('hidden');
-  document.getElementById('apply-form-wrap')?.classList.add('hidden');
-}
+/** POST here — not "/" (SPA rewrite /* → index.html breaks form handler) */
+export const NETLIFY_FORM_ENDPOINT = '/forms.html';
 
 /**
- * @param {FormData} formData
+ * @param {{ name: string, email: string, telegram: string, reason: string }} payload
  * @returns {Promise<void>}
  */
-async function submitToNetlify(formData) {
-  const body = new URLSearchParams(formData);
-  body.set('form-name', NETLIFY_FORM_NAME);
+async function submitToNetlify(payload) {
+  const body = new URLSearchParams({
+    'form-name': NETLIFY_FORM_NAME,
+    name: payload.name,
+    email: payload.email,
+    telegram: payload.telegram,
+    reason: payload.reason,
+    'bot-field': '',
+  });
 
-  const response = await fetch('/', {
+  const response = await fetch(NETLIFY_FORM_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),
@@ -46,6 +42,19 @@ async function submitToNetlify(formData) {
 async function saveAccessRequest(payload) {
   const { createAccessRequest } = await import('../modules/requests.js');
   await createAccessRequest(payload);
+}
+
+/**
+ * @returns {boolean}
+ */
+function isSuccessUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.has('success') || params.has('submitted');
+}
+
+function showSuccessState() {
+  document.getElementById('apply-success')?.classList.remove('hidden');
+  document.getElementById('apply-form-wrap')?.classList.add('hidden');
 }
 
 export default async function init() {
@@ -75,16 +84,15 @@ export default async function init() {
       submitBtn.textContent = t('apply.submitting');
     }
 
-    try {
-      const formData = new FormData(form);
-      const payload = {
-        name: String(formData.get('name') ?? '').trim(),
-        email: String(formData.get('email') ?? '').trim(),
-        telegram: String(formData.get('telegram') ?? '').trim(),
-        reason: String(formData.get('reason') ?? '').trim(),
-      };
+    const payload = {
+      name: String(new FormData(form).get('name') ?? '').trim(),
+      email: String(new FormData(form).get('email') ?? '').trim(),
+      telegram: String(new FormData(form).get('telegram') ?? '').trim(),
+      reason: String(new FormData(form).get('reason') ?? '').trim(),
+    };
 
-      await submitToNetlify(formData);
+    try {
+      await submitToNetlify(payload);
 
       try {
         await saveAccessRequest({
