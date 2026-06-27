@@ -1,0 +1,136 @@
+<div class="dashboard-page material-editor">
+  <div class="mb-6 flex flex-wrap items-center gap-4">
+    <a href="/dashboard/materials" class="text-dim-text transition hover:text-neural-glow">← Матеріали</a>
+    <input id="mat-title" type="text" required placeholder="Назва матеріалу (обов'язкова)"
+      class="min-w-0 flex-1 rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 font-display text-lg outline-none focus:border-neural-glow">
+  </div>
+
+  <section class="mb-8 rounded-xl border border-pulse-violet/20 bg-nebula-deep/30 p-5">
+    <h2 class="mb-4 text-xs font-semibold uppercase tracking-wider text-dim-text">Мета</h2>
+    <textarea id="mat-description" rows="2" maxlength="500" placeholder="Короткий опис для каталогу (до 500 символів)"
+      class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 text-sm outline-none focus:border-neural-glow"></textarea>
+    <p class="mt-1 text-right text-xs text-dim-text"><span id="desc-count">0</span>/500</p>
+    <div class="mt-4 grid gap-4 sm:grid-cols-2">
+      <div>
+        <label for="mat-category" class="mb-1 block text-sm text-dim-text">Категорія</label>
+        <select id="mat-category"
+          class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 text-sm outline-none focus:border-neural-glow">
+          <option value="">Без категорії</option>
+        </select>
+      </div>
+      <div>
+        <label for="mat-status" class="mb-1 block text-sm text-dim-text">Статус</label>
+        <select id="mat-status"
+          class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 text-sm outline-none focus:border-neural-glow">
+          <option value="draft">Чернетка</option>
+          <option value="published">Опублікований</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-8">
+    <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-dim-text">Теги</h2>
+    <div id="tags-list" class="mb-2 flex flex-wrap gap-2"></div>
+    <div class="flex gap-2">
+      <input id="tag-input" type="text" placeholder="Додати тег…"
+        class="flex-1 rounded-lg border border-pulse-violet/30 bg-space-void px-3 py-2 text-sm outline-none focus:border-neural-glow">
+      <button type="button" id="tag-add-btn"
+        class="rounded-lg border border-pulse-violet/30 px-4 py-2 text-sm hover:border-neural-glow">+</button>
+    </div>
+  </section>
+
+  <section class="mb-8">
+    <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-dim-text">Основний вміст</h2>
+    <div id="quill-editor"></div>
+  </section>
+
+  <section class="mb-8 rounded-xl border border-pulse-violet/20 bg-nebula-deep/30 p-5">
+    <h2 class="mb-4 text-xs font-semibold uppercase tracking-wider text-dim-text">Медіа</h2>
+    <div class="mb-4 flex flex-wrap gap-2 border-b border-pulse-violet/20 pb-3">
+      <button type="button" data-media-tab="images" class="media-tab active rounded-lg px-3 py-1.5 text-sm">Зображення</button>
+      <button type="button" data-media-tab="videos" class="media-tab rounded-lg px-3 py-1.5 text-sm text-dim-text">Відео</button>
+      <button type="button" data-media-tab="pdf" class="media-tab rounded-lg px-3 py-1.5 text-sm text-dim-text">PDF</button>
+      <button type="button" data-media-tab="links" class="media-tab rounded-lg px-3 py-1.5 text-sm text-dim-text">Посилання</button>
+    </div>
+
+    <div id="panel-images" class="media-panel">
+      <div id="images-dropzone" class="material-dropzone rounded-lg p-8 text-center text-sm text-dim-text">
+        Перетягніть зображення сюди (до 5 файлів, 2MB кожен)
+        <input id="images-input" type="file" accept="image/*" multiple class="hidden">
+      </div>
+      <div id="images-preview" class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5"></div>
+    </div>
+
+    <div id="panel-videos" class="media-panel hidden">
+      <div class="flex flex-wrap gap-2">
+        <input id="video-url" type="url" placeholder="URL відео (YouTube, Vimeo, TikTok, Telegram, Loom)"
+          class="min-w-0 flex-1 rounded-lg border border-pulse-violet/30 bg-space-void px-3 py-2 text-sm">
+        <button type="button" id="video-add-btn" class="rounded-lg bg-pulse-violet/80 px-4 py-2 text-sm">+ Додати</button>
+      </div>
+      <div id="videos-list" class="mt-4 space-y-3"></div>
+    </div>
+
+    <div id="panel-pdf" class="media-panel hidden">
+      <div class="mb-4 flex gap-4 text-sm">
+        <label class="flex items-center gap-2"><input type="radio" name="pdf-mode" value="file" checked> Завантажити файл</label>
+        <label class="flex items-center gap-2"><input type="radio" name="pdf-mode" value="url"> Вставити посилання</label>
+      </div>
+      <div id="pdf-file-panel">
+        <div id="pdf-dropzone" class="material-dropzone rounded-lg p-8 text-center text-sm text-dim-text">
+          PDF до 20MB
+          <input id="pdf-input" type="file" accept="application/pdf" class="hidden">
+        </div>
+        <p id="pdf-file-name" class="mt-2 text-sm text-dim-text"></p>
+      </div>
+      <div id="pdf-url-panel" class="hidden">
+        <input id="pdf-url" type="url" placeholder="https://…"
+          class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-3 py-2 text-sm">
+      </div>
+    </div>
+
+    <div id="panel-links" class="media-panel hidden">
+      <div class="grid gap-2 sm:grid-cols-2">
+        <input id="link-url" type="url" placeholder="URL"
+          class="rounded-lg border border-pulse-violet/30 bg-space-void px-3 py-2 text-sm">
+        <input id="link-label" type="text" placeholder="Підпис"
+          class="rounded-lg border border-pulse-violet/30 bg-space-void px-3 py-2 text-sm">
+      </div>
+      <button type="button" id="link-add-btn" class="mt-2 rounded-lg border border-pulse-violet/30 px-4 py-2 text-sm hover:border-neural-glow">+ Додати</button>
+      <ul id="links-list" class="mt-4 space-y-2"></ul>
+    </div>
+  </section>
+
+  <section id="visibility-section" class="mb-8 rounded-xl border border-pulse-violet/20 bg-nebula-deep/30 p-5">
+    <h2 class="mb-4 text-xs font-semibold uppercase tracking-wider text-dim-text">Видимість</h2>
+    <div class="space-y-3 text-sm">
+      <label class="flex items-center gap-2">
+        <input id="vis-guest" type="checkbox" class="rounded border-pulse-violet/40">
+        Відкрити для гостей
+      </label>
+      <label class="flex items-center gap-2">
+        <input id="vis-auth" type="checkbox" class="rounded border-pulse-violet/40">
+        Доступний для всіх авторизованих користувачів
+      </label>
+      <div>
+        <label for="vis-users" class="mb-1 block text-dim-text">Конкретні користувачі</label>
+        <select id="vis-users" multiple size="4"
+          class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-3 py-2 text-sm"></select>
+      </div>
+    </div>
+  </section>
+
+  <p id="mat-autosave" class="mb-4 text-xs text-dim-text"></p>
+  <p id="mat-error" class="mb-4 hidden text-sm text-red-400"></p>
+
+  <div class="flex flex-wrap gap-3">
+    <button type="button" id="btn-save-draft"
+      class="rounded-lg border border-pulse-violet/40 px-5 py-2.5 text-sm hover:border-neural-glow">
+      Зберегти чернетку
+    </button>
+    <button type="button" id="btn-publish"
+      class="rounded-lg bg-pulse-violet px-5 py-2.5 text-sm font-medium hover:shadow-[0_0_16px_rgba(124,58,237,0.4)]">
+      Опублікувати
+    </button>
+  </div>
+</div>

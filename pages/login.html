@@ -1,0 +1,39 @@
+<header class="border-b border-pulse-violet/20 bg-nebula-deep/80 backdrop-blur-sm">
+  <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+    <a href="/" class="font-display text-lg text-neural-glow">AI Synergy</a>
+    <div class="flex items-center gap-4">
+      <span id="lang-switcher-slot"></span>
+      <a href="/" class="text-sm text-dim-text hover:text-neural-glow" data-i18n="nav.backHome">← На головну</a>
+    </div>
+  </div>
+</header>
+
+<main class="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-12">
+  <div class="rounded-xl border border-pulse-violet/30 bg-nebula-deep/60 p-8 shadow-[0_0_30px_rgba(124,58,237,0.15)]">
+    <h1 class="font-display text-2xl text-neural-glow" data-i18n="login.title">Вхід</h1>
+    <p class="mt-2 text-sm text-dim-text" data-i18n="login.subtitle">Увійдіть до панелі управління архівом</p>
+
+    <form id="login-form" class="mt-8 space-y-5">
+      <div>
+        <label for="login" class="mb-1 block text-sm text-dim-text" data-i18n="auth.username">Логін</label>
+        <input id="login" name="login" type="text" required autocomplete="username"
+          class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 outline-none focus:border-neural-glow">
+      </div>
+      <div>
+        <label for="password" class="mb-1 block text-sm text-dim-text" data-i18n="auth.password">Пароль</label>
+        <input id="password" name="password" type="password" required autocomplete="current-password"
+          class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 outline-none focus:border-neural-glow">
+      </div>
+      <label class="flex items-center gap-2 text-sm text-dim-text">
+        <input id="remember" name="remember" type="checkbox" class="rounded border-pulse-violet/40">
+        <span data-i18n="login.remember">Запам'ятати мене</span>
+      </label>
+      <p id="login-error" class="hidden text-sm text-red-400"></p>
+      <button type="submit" id="login-submit"
+        class="w-full rounded-lg bg-pulse-violet py-2.5 font-medium transition hover:shadow-[0_0_20px_rgba(124,58,237,0.4)]"
+        data-i18n="login.submit">
+        Увійти
+      </button>
+    </form>
+  </div>
+</main>

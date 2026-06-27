@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /pages/dashboard/
+Disallow: /pages/setup.html
+
+Sitemap: https://YOUR_DOMAIN/sitemap.xml

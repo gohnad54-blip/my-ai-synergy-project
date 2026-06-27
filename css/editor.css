@@ -1,0 +1,58 @@
+/* Quill editor — dark theme overrides for dashboard */
+
+.ql-toolbar.ql-snow,
+.ql-container.ql-snow {
+  border-color: rgba(124, 58, 237, 0.3);
+}
+
+.ql-toolbar.ql-snow {
+  background: rgba(13, 13, 43, 0.8);
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.ql-container.ql-snow {
+  background: #050510;
+  border-radius: 0 0 0.5rem 0.5rem;
+  min-height: 220px;
+}
+
+.ql-editor {
+  color: #e2e8f0;
+  min-height: 200px;
+}
+
+.ql-snow .ql-stroke {
+  stroke: #94a3b8;
+}
+
+.ql-snow .ql-fill {
+  fill: #94a3b8;
+}
+
+.ql-snow .ql-picker-label {
+  color: #94a3b8;
+}
+
+.ql-snow.ql-toolbar button:hover,
+.ql-snow .ql-toolbar button:hover,
+.ql-snow.ql-toolbar button.ql-active,
+.ql-snow .ql-toolbar button.ql-active {
+  color: #a78bfa;
+}
+
+.ql-snow.ql-toolbar button:hover .ql-stroke,
+.ql-snow .ql-toolbar button:hover .ql-stroke,
+.ql-snow.ql-toolbar button.ql-active .ql-stroke,
+.ql-snow .ql-toolbar button.ql-active .ql-stroke {
+  stroke: #a78bfa;
+}
+
+.material-dropzone {
+  border: 2px dashed rgba(124, 58, 237, 0.35);
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.material-dropzone.dragover {
+  border-color: #a78bfa;
+  background: rgba(124, 58, 237, 0.08);
+}

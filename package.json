@@ -1,0 +1,11 @@
+{
+  "name": "ai-synergy-archive",
+  "private": true,
+  "scripts": {
+    "start": "npx --yes serve -s .",
+    "dev": "npx --yes serve -s . -p 3456"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.2.1"
+  }
+}

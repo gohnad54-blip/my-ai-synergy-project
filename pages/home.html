@@ -1,0 +1,48 @@
+<header class="border-b border-pulse-violet/20 bg-nebula-deep/80 backdrop-blur-sm">
+  <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4">
+    <a href="/" class="font-display text-lg tracking-wide text-neural-glow">AI Synergy</a>
+    <nav class="flex flex-wrap items-center gap-4 text-sm">
+      <a href="/" data-nav="/" class="transition hover:text-neural-glow" data-i18n="nav.home">Головна</a>
+      <a href="/materials" data-nav="/materials" class="transition hover:text-neural-glow" data-i18n="nav.materials">Матеріали</a>
+      <a href="/about" data-nav="/about" class="transition hover:text-neural-glow" data-i18n="nav.about">Про клуб</a>
+      <a href="/apply" data-nav="/apply" class="transition hover:text-neural-glow" data-i18n="nav.apply">Подати заявку</a>
+      <span id="lang-switcher-slot"></span>
+      <span id="public-auth-slot"></span>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="mx-auto max-w-6xl px-4 py-16 md:py-24">
+    <h1 class="font-display text-4xl text-neural-glow md:text-6xl">AI SYNERGY</h1>
+    <p class="mt-4 max-w-xl text-lg text-dim-text" data-i18n="home.hero.subtitle">Архів знань клубу</p>
+    <a href="/materials" data-spa-nav="/materials"
+      class="btn-cta mt-8 inline-block rounded-lg bg-pulse-violet px-6 py-3 font-medium transition hover:shadow-[0_0_20px_rgba(124,58,237,0.4)]"
+      data-i18n="home.hero.cta">
+      Переглянути матеріали
+    </a>
+  </section>
+
+  <section class="mx-auto max-w-6xl px-4 pb-16">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <h2 class="font-display text-2xl text-neural-glow" data-i18n="home.recent.title">Останні матеріали</h2>
+      <a href="/materials" data-spa-nav="/materials" class="text-sm text-synapse-blue hover:text-neural-glow" data-i18n="home.recent.viewAll">Переглянути всі →</a>
+    </div>
+    <div id="recent-materials-grid" class="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <p class="text-dim-text" data-i18n="common.loading">Завантаження…</p>
+    </div>
+  </section>
+
+  <section class="border-t border-pulse-violet/15 bg-nebula-deep/30 py-16">
+    <div class="mx-auto max-w-6xl px-4">
+      <h2 class="font-display text-2xl text-neural-glow" data-i18n="home.about.title">Про клуб</h2>
+      <p id="home-about-text" class="mt-4 max-w-3xl leading-relaxed text-dim-text" data-i18n="common.loading">Завантаження…</p>
+      <a href="/about" data-spa-nav="/about" class="mt-6 inline-block text-synapse-blue hover:text-neural-glow" data-i18n="home.about.more">Детальніше →</a>
+    </div>
+  </section>
+</main>
+
+<footer class="border-t border-pulse-violet/20 py-8 text-center text-sm text-dim-text">
+  <p>© AI Synergy</p>
+  <a href="/login" data-nav="/login" class="mt-2 inline-block text-synapse-blue hover:text-neural-glow" data-i18n="home.footer.login">Вхід</a>
+</footer>

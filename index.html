@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Synergy — Архів клубу</title>
+  <meta name="description" content="Архів матеріалів клубу AI Synergy">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'space-void': '#050510',
+            'nebula-deep': '#0d0d2b',
+            'synapse-blue': '#3b82f6',
+            'pulse-violet': '#7c3aed',
+            'neural-glow': '#a78bfa',
+            'starfield-white': '#e2e8f0',
+            'dim-text': '#94a3b8',
+            'success': '#10b981',
+            'danger': '#ef4444',
+            'warning': '#f59e0b',
+          },
+          fontFamily: {
+            'display': ['Orbitron', 'sans-serif'],
+            'body': ['Inter', 'sans-serif'],
+            'mono': ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/particles.css">
+  <link rel="stylesheet" href="/css/animations.css">
+  <link rel="stylesheet" href="/css/editor.css">
+</head>
+<body class="bg-space-void text-starfield-white min-h-screen">
+  <div id="particles-bg"></div>
+  <div id="app"></div>
+  <script type="module" src="/js/core/router.js"></script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<div class="fixed right-4 top-4 z-50">
+  <span id="lang-switcher-slot"></span>
+</div>
+
+<main class="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-12">
+  <div class="text-center">
+    <img src="/assets/logo.svg" alt="" class="mx-auto h-20 w-20" width="80" height="80">
+    <h1 class="mt-6 font-display text-2xl text-neural-glow">AI Synergy</h1>
+    <p class="mt-2 text-dim-text" data-i18n="setup.welcome">Ласкаво просимо до налаштування архіву</p>
+    <p class="mt-1 text-sm text-dim-text" data-i18n="setup.step">Крок 1 з 1: Створення адміністратора</p>
+  </div>
+
+  <form id="setup-form" class="mt-10 space-y-5 rounded-xl border border-pulse-violet/30 bg-nebula-deep/60 p-8 shadow-[0_0_30px_rgba(124,58,237,0.12)]" novalidate>
+    <div>
+      <label for="setup-login" class="mb-1 block text-sm text-dim-text" data-i18n="setup.loginLabel">Логін адміна</label>
+      <input id="setup-login" name="login" type="text" required autocomplete="username" minlength="4" pattern="[A-Za-z0-9]+"
+        class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 outline-none focus:border-neural-glow"
+        data-i18n-placeholder="setup.loginPlaceholder" placeholder="latin letters and digits">
+      <p class="mt-1 text-xs text-dim-text" data-i18n="setup.loginHint">Латиниця та цифри, мінімум 4 символи</p>
+    </div>
+
+    <div>
+      <label for="setup-display-name" class="mb-1 block text-sm text-dim-text" data-i18n="setup.displayName">Ім'я для відображення</label>
+      <input id="setup-display-name" name="displayName" type="text" required autocomplete="name"
+        class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 outline-none focus:border-neural-glow">
+    </div>
+
+    <div>
+      <label for="setup-password" class="mb-1 block text-sm text-dim-text" data-i18n="setup.password">Пароль</label>
+      <div class="relative">
+        <input id="setup-password" name="password" type="password" required autocomplete="new-password" minlength="8"
+          class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 pr-12 outline-none focus:border-neural-glow">
+        <button type="button" id="toggle-password" data-i18n-aria="setup.showPassword"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-dim-text hover:text-neural-glow">
+          👁
+        </button>
+      </div>
+      <p class="mt-1 text-xs text-dim-text" data-i18n="setup.passwordHint">Мінімум 8 символів</p>
+    </div>
+
+    <div>
+      <label for="setup-password-confirm" class="mb-1 block text-sm text-dim-text" data-i18n="setup.passwordConfirm">Підтвердити пароль</label>
+      <input id="setup-password-confirm" name="passwordConfirm" type="password" required autocomplete="new-password" minlength="8"
+        class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 outline-none focus:border-neural-glow">
+    </div>
+
+    <p id="setup-error" class="hidden rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400" role="alert"></p>
+
+    <button type="submit" id="setup-submit"
+      class="w-full rounded-lg bg-pulse-violet py-2.5 font-medium transition hover:shadow-[0_0_20px_rgba(124,58,237,0.4)] disabled:cursor-not-allowed disabled:opacity-50"
+      data-i18n="setup.submit">
+      Створити архів
+    </button>
+
+    <p class="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs leading-relaxed text-warning" data-i18n="setup.warning">
+      ⚠ Збережіть логін та пароль в надійному місці. Відновлення доступу без них неможливе.
+    </p>
+  </form>
+</main>

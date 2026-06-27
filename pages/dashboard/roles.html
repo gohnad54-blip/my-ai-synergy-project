@@ -1,0 +1,40 @@
+<div class="dashboard-page">
+  <div class="flex flex-col gap-6 lg:flex-row">
+    <aside class="w-full shrink-0 lg:w-56">
+      <button type="button" id="role-create-btn"
+        class="w-full rounded-lg bg-pulse-violet px-4 py-2 text-sm font-medium transition hover:shadow-[0_0_16px_rgba(124,58,237,0.4)]">
+        + Створити роль
+      </button>
+      <ul id="roles-list" class="mt-4 space-y-1"></ul>
+    </aside>
+
+    <section class="min-w-0 flex-1 rounded-xl border border-pulse-violet/25 bg-nebula-deep/40 p-6">
+      <div id="role-editor-empty" class="py-12 text-center text-dim-text">
+        Оберіть роль або створіть нову
+      </div>
+
+      <form id="role-form" class="hidden space-y-6">
+        <div>
+          <label for="role-name" class="mb-1 block text-sm text-dim-text">Назва ролі</label>
+          <input id="role-name" name="name" type="text" required
+            class="w-full max-w-md rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 outline-none focus:border-neural-glow">
+        </div>
+
+        <div id="permissions-grid" class="space-y-6"></div>
+
+        <p id="role-error" class="hidden text-sm text-red-400"></p>
+
+        <div class="flex flex-wrap gap-3">
+          <button type="submit" id="role-save-btn"
+            class="rounded-lg bg-pulse-violet px-5 py-2 text-sm font-medium hover:shadow-[0_0_16px_rgba(124,58,237,0.4)]">
+            Зберегти роль
+          </button>
+          <button type="button" id="role-delete-btn"
+            class="hidden rounded-lg border border-danger/40 px-5 py-2 text-sm text-red-400 hover:bg-danger/10">
+            Видалити роль
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+</div>

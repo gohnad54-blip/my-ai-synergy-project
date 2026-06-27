@@ -1,0 +1,15 @@
+<div class="dashboard-page">
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <h1 class="font-display text-2xl text-neural-glow" data-i18n="dashboard.requests">Заявки</h1>
+    <button type="button" id="requests-sync-btn"
+      class="rounded-lg border border-pulse-violet/30 px-4 py-2 text-sm text-neural-glow hover:border-neural-glow"
+      data-i18n="requests.syncNetlify">
+      ↻ Синхронізувати з Netlify
+    </button>
+  </div>
+  <p class="mt-2 text-sm text-dim-text" data-i18n="requests.hint">Схвалення створює акаунт вручну через «Новий користувач».</p>
+
+  <div id="requests-list" class="mt-8 space-y-3">
+    <p class="text-sm text-dim-text" data-i18n="common.loading">Завантаження…</p>
+  </div>
+</div>

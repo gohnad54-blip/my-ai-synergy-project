@@ -1,0 +1,30 @@
+<div class="dashboard-page">
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h1 class="font-display text-2xl text-neural-glow">Користувачі</h1>
+      <p class="mt-1 text-sm text-dim-text">Управління акаунтами клубу</p>
+    </div>
+    <a id="users-create-link" href="/dashboard/user-create"
+      class="hidden rounded-lg bg-pulse-violet px-4 py-2 text-sm font-medium hover:shadow-[0_0_16px_rgba(124,58,237,0.4)]">
+      + Створити акаунт
+    </a>
+  </div>
+
+  <div class="mt-8 overflow-x-auto rounded-xl border border-pulse-violet/25">
+    <table class="w-full min-w-[640px] text-left text-sm">
+      <thead class="border-b border-pulse-violet/20 bg-nebula-deep/60 text-dim-text">
+        <tr>
+          <th class="px-4 py-3 font-medium">Ім'я</th>
+          <th class="px-4 py-3 font-medium">Логін</th>
+          <th class="px-4 py-3 font-medium">Роль</th>
+          <th class="px-4 py-3 font-medium">Статус</th>
+          <th class="px-4 py-3 font-medium">Створено</th>
+          <th class="px-4 py-3 font-medium">Дії</th>
+        </tr>
+      </thead>
+      <tbody id="users-table-body">
+        <tr><td colspan="6" class="px-4 py-8 text-center text-dim-text">Завантаження…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,0 +1,33 @@
+<div class="dashboard-page">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <h1 class="font-display text-2xl text-neural-glow" data-i18n="log.title">Журнал дій</h1>
+    <button type="button" id="log-export-csv"
+      class="rounded-lg border border-pulse-violet/30 px-4 py-2 text-sm text-neural-glow hover:border-neural-glow"
+      data-i18n="log.exportCsv">
+      Завантажити журнал як CSV
+    </button>
+  </div>
+
+  <div class="mt-6 flex flex-wrap items-end gap-4">
+    <label class="block text-sm">
+      <span class="mb-1 block text-dim-text" data-i18n="log.filterAction">Фільтр: дії</span>
+      <select id="log-filter-action" class="min-w-[180px] rounded-lg border border-pulse-violet/30 bg-space-void px-3 py-2 text-sm"></select>
+    </label>
+    <label class="block text-sm">
+      <span class="mb-1 block text-dim-text" data-i18n="log.filterUser">Фільтр: користувачі</span>
+      <select id="log-filter-user" class="min-w-[180px] rounded-lg border border-pulse-violet/30 bg-space-void px-3 py-2 text-sm"></select>
+    </label>
+    <label class="block text-sm">
+      <span class="mb-1 block text-dim-text" data-i18n="log.dateFrom">Дата від</span>
+      <input type="date" id="log-date-from" class="rounded-lg border border-pulse-violet/30 bg-space-void px-3 py-2 text-sm">
+    </label>
+    <label class="block text-sm">
+      <span class="mb-1 block text-dim-text" data-i18n="log.dateTo">Дата до</span>
+      <input type="date" id="log-date-to" class="rounded-lg border border-pulse-violet/30 bg-space-void px-3 py-2 text-sm">
+    </label>
+  </div>
+
+  <div id="log-list" class="mt-6 space-y-0 rounded-xl border border-pulse-violet/25 bg-nebula-deep/40 p-4">
+    <p class="text-sm text-dim-text" data-i18n="common.loading">Завантаження…</p>
+  </div>
+</div>

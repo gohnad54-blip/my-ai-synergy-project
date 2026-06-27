@@ -1,0 +1,91 @@
+<div class="dashboard-page">
+  <div id="user-create-form-view">
+    <h1 class="font-display text-2xl text-neural-glow">Створити акаунт</h1>
+    <p class="mt-1 text-sm text-dim-text">Адмін задає логін і пароль вручну</p>
+
+    <form id="user-create-form" class="mt-8 max-w-lg space-y-5">
+      <div>
+        <label for="uc-login" class="mb-1 block text-sm text-dim-text">Логін</label>
+        <input id="uc-login" type="text" required pattern="[A-Za-z0-9]+" minlength="4" autocomplete="off"
+          class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 outline-none focus:border-neural-glow">
+      </div>
+      <div>
+        <label for="uc-display" class="mb-1 block text-sm text-dim-text">Ім'я для відображення</label>
+        <input id="uc-display" type="text" required
+          class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 outline-none focus:border-neural-glow">
+      </div>
+      <div>
+        <label for="uc-password" class="mb-1 block text-sm text-dim-text">Пароль</label>
+        <input id="uc-password" type="password" required minlength="8" autocomplete="new-password"
+          class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 outline-none focus:border-neural-glow">
+      </div>
+      <div>
+        <label for="uc-password-confirm" class="mb-1 block text-sm text-dim-text">Підтвердити пароль</label>
+        <input id="uc-password-confirm" type="password" required minlength="8" autocomplete="new-password"
+          class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 outline-none focus:border-neural-glow">
+      </div>
+      <div>
+        <label for="uc-role" class="mb-1 block text-sm text-dim-text">Роль</label>
+        <select id="uc-role" required
+          class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 outline-none focus:border-neural-glow">
+          <option value="">Оберіть роль…</option>
+        </select>
+      </div>
+      <fieldset>
+        <legend class="mb-2 text-sm text-dim-text">Дозвіл зміни пароля</legend>
+        <div class="space-y-2 text-sm">
+          <label class="flex items-center gap-2"><input type="radio" name="passwordPolicy" value="never" checked> Ніколи</label>
+          <label class="flex items-center gap-2"><input type="radio" name="passwordPolicy" value="once"> Одноразово</label>
+          <label class="flex items-center gap-2"><input type="radio" name="passwordPolicy" value="always"> Завжди</label>
+        </div>
+      </fieldset>
+      <div>
+        <label for="uc-note" class="mb-1 block text-sm text-dim-text">Нотатка (лише для адміна)</label>
+        <textarea id="uc-note" rows="3"
+          class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 outline-none focus:border-neural-glow"></textarea>
+      </div>
+      <p id="uc-error" class="hidden text-sm text-red-400"></p>
+      <button type="submit"
+        class="rounded-lg bg-pulse-violet px-6 py-2.5 font-medium hover:shadow-[0_0_20px_rgba(124,58,237,0.4)]">
+        Створити акаунт
+      </button>
+    </form>
+  </div>
+
+  <div id="user-create-success" class="hidden max-w-md">
+    <div class="rounded-xl border border-success/30 bg-success/10 p-6 text-center">
+      <p class="text-2xl">✅</p>
+      <h2 class="mt-2 font-display text-xl text-neural-glow">Акаунт створено</h2>
+      <dl class="mt-6 space-y-3 text-left text-sm">
+        <div class="flex justify-between gap-4">
+          <dt class="text-dim-text">Логін:</dt>
+          <dd id="success-login" class="mono font-medium"></dd>
+        </div>
+        <div class="flex items-center justify-between gap-4">
+          <dt class="text-dim-text">Пароль:</dt>
+          <dd class="flex items-center gap-2">
+            <span id="success-password" class="mono font-medium">••••••••</span>
+            <button type="button" id="success-toggle-pw" class="text-dim-text hover:text-neural-glow" title="Показати">👁</button>
+          </dd>
+        </div>
+      </dl>
+      <button type="button" id="success-copy"
+        class="mt-6 w-full rounded-lg border border-pulse-violet/30 py-2 text-sm hover:border-neural-glow">
+        📋 Скопіювати дані
+      </button>
+      <p class="mt-4 text-xs text-warning">
+        ⚠ Після закриття цього вікна пароль більше не відображатиметься
+      </p>
+      <div class="mt-6 flex gap-3">
+        <button type="button" id="success-close"
+          class="flex-1 rounded-lg border border-pulse-violet/30 py-2 text-sm hover:border-neural-glow">
+          Закрити
+        </button>
+        <button type="button" id="success-another"
+          class="flex-1 rounded-lg bg-pulse-violet py-2 text-sm font-medium">
+          Створити ще одного
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

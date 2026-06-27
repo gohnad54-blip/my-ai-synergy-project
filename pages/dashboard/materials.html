@@ -1,0 +1,33 @@
+<div class="dashboard-page">
+  <script>if (!window.__routerBootstrapped) { location.replace('/'); }</script>
+
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h1 class="font-display text-2xl text-neural-glow" data-i18n="dashboard.materials">Матеріали</h1>
+      <p id="materials-subtitle" class="mt-1 text-sm text-dim-text" data-i18n="dashboard.allMaterials">Усі матеріали</p>
+    </div>
+    <a href="/dashboard/material-edit" data-spa-nav="/dashboard/material-edit"
+      class="rounded-lg bg-pulse-violet px-4 py-2 text-sm font-medium hover:shadow-[0_0_16px_rgba(124,58,237,0.4)]"
+      data-i18n="dashboard.newMaterial">
+      + Новий матеріал
+    </a>
+  </div>
+
+  <div class="mt-8 overflow-x-auto rounded-xl border border-pulse-violet/25">
+    <table class="w-full min-w-[640px] text-left text-sm">
+      <thead class="border-b border-pulse-violet/20 bg-nebula-deep/60 text-dim-text">
+        <tr>
+          <th class="px-4 py-3 font-medium" data-i18n="dashboard.table.title">Назва</th>
+          <th class="px-4 py-3 font-medium" data-i18n="dashboard.table.status">Статус</th>
+          <th class="px-4 py-3 font-medium" data-i18n="dashboard.table.category">Категорія</th>
+          <th class="px-4 py-3 font-medium" data-i18n="dashboard.table.updated">Оновлено</th>
+          <th class="px-4 py-3 font-medium" data-i18n="dashboard.table.visibility">Видимість</th>
+          <th class="px-4 py-3 font-medium" data-i18n="dashboard.table.actions">Дії</th>
+        </tr>
+      </thead>
+      <tbody id="materials-table-body">
+        <tr><td colspan="6" class="px-4 py-8 text-center text-dim-text" data-i18n="common.loading">Завантаження…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>

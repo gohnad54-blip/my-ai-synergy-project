@@ -1,0 +1,36 @@
+<div class="dashboard-page">
+  <h1 class="font-display text-2xl text-neural-glow md:text-3xl">
+    <span data-i18n="dashboard.welcome">Вітаємо</span>, <span id="dashboard-user-name">—</span>!
+  </h1>
+
+  <div id="stats-grid" class="mt-8 grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
+    <div class="stat-card rounded-xl border border-pulse-violet/25 bg-nebula-deep/50 p-4 md:p-5">
+      <p id="stat-materials" class="font-display text-2xl text-neural-glow md:text-3xl">—</p>
+      <p class="mt-1 text-xs text-dim-text md:text-sm" data-i18n="dashboard.stats.materials">Матеріалів</p>
+    </div>
+    <div class="stat-card rounded-xl border border-pulse-violet/25 bg-nebula-deep/50 p-4 md:p-5">
+      <p id="stat-users" class="font-display text-2xl text-neural-glow md:text-3xl">—</p>
+      <p class="mt-1 text-xs text-dim-text md:text-sm" data-i18n="dashboard.stats.users">Користувачів</p>
+    </div>
+    <div class="stat-card rounded-xl border border-pulse-violet/25 bg-nebula-deep/50 p-4 md:p-5">
+      <p id="stat-requests" class="font-display text-2xl text-neural-glow md:text-3xl">—</p>
+      <p class="mt-1 text-xs text-dim-text md:text-sm" data-i18n="dashboard.stats.requests">Заявок</p>
+    </div>
+    <div class="stat-card rounded-xl border border-pulse-violet/25 bg-nebula-deep/50 p-4 md:p-5">
+      <p id="stat-trash" class="font-display text-2xl text-neural-glow md:text-3xl">—</p>
+      <p class="mt-1 text-xs text-dim-text md:text-sm" data-i18n="dashboard.stats.trash">У кошику</p>
+    </div>
+  </div>
+
+  <section class="mt-10">
+    <h2 class="font-display text-lg text-starfield-white" data-i18n="dashboard.recentActions">Останні дії</h2>
+    <div id="recent-log" class="mt-4 space-y-2 rounded-xl border border-pulse-violet/20 bg-nebula-deep/40 p-4">
+      <p class="text-sm text-dim-text" data-i18n="common.loading">Завантаження…</p>
+    </div>
+  </section>
+
+  <section id="new-requests-section" class="mt-10 hidden">
+    <h2 class="font-display text-lg text-starfield-white" data-i18n="dashboard.newRequests">Нові заявки на акаунт</h2>
+    <div id="new-requests-list" class="mt-4 space-y-3"></div>
+  </section>
+</div>

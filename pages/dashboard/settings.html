@@ -1,0 +1,48 @@
+<div class="dashboard-page">
+  <h1 class="font-display text-2xl text-neural-glow" data-i18n="dashboard.settings">Налаштування</h1>
+
+  <section class="mt-8 rounded-xl border border-pulse-violet/25 bg-nebula-deep/40 p-6">
+    <h2 class="text-xs font-semibold uppercase tracking-wider text-dim-text" data-i18n="settings.backupTitle">Бекап даних</h2>
+    <div class="mt-4 flex flex-wrap items-center gap-4">
+      <button type="button" id="backup-export-btn"
+        class="rounded-lg bg-pulse-violet px-4 py-2 text-sm font-medium hover:shadow-[0_0_16px_rgba(124,58,237,0.4)]"
+        data-i18n="settings.exportBackup">
+        📥 Експортувати бекап
+      </button>
+      <p id="backup-last-label" class="text-sm text-dim-text" data-i18n="settings.lastBackupNever">Останній бекап: ніколи</p>
+    </div>
+  </section>
+
+  <section class="mt-6 rounded-xl border border-warning/30 bg-warning/5 p-6">
+    <h2 class="text-xs font-semibold uppercase tracking-wider text-warning" data-i18n="settings.restoreTitle">Відновлення</h2>
+    <div class="mt-4 flex flex-wrap items-center gap-4">
+      <label class="cursor-pointer rounded-lg border border-pulse-violet/30 px-4 py-2 text-sm text-neural-glow hover:border-neural-glow">
+        <span data-i18n="settings.importBackup">📤 Імпортувати бекап</span>
+        <input type="file" id="backup-import-input" accept="application/json,.json" class="sr-only">
+      </label>
+      <p class="text-sm text-warning" data-i18n="settings.importWarning">⚠ Замінить всі поточні дані</p>
+    </div>
+  </section>
+
+  <section class="mt-6 rounded-xl border border-pulse-violet/25 bg-nebula-deep/40 p-6">
+    <h2 class="text-xs font-semibold uppercase tracking-wider text-dim-text" data-i18n="settings.netlifyTitle">Netlify Forms</h2>
+    <p class="mt-2 text-sm text-dim-text" data-i18n="settings.netlifyHint">Для синхронізації заявок з Netlify вкажіть Site ID та Personal Access Token.</p>
+    <form id="netlify-settings-form" class="mt-4 grid max-w-xl gap-4">
+      <div>
+        <label for="netlify-site-id" class="mb-1 block text-sm text-dim-text" data-i18n="settings.netlifySiteId">Site ID</label>
+        <input id="netlify-site-id" type="text" autocomplete="off"
+          class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 text-sm outline-none focus:border-neural-glow">
+      </div>
+      <div>
+        <label for="netlify-access-token" class="mb-1 block text-sm text-dim-text" data-i18n="settings.netlifyToken">Access token</label>
+        <input id="netlify-access-token" type="password" autocomplete="off"
+          class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 text-sm outline-none focus:border-neural-glow">
+      </div>
+      <button type="submit"
+        class="w-fit rounded-lg border border-pulse-violet/30 px-4 py-2 text-sm text-neural-glow hover:border-neural-glow"
+        data-i18n="settings.netlifySave">
+        Зберегти
+      </button>
+    </form>
+  </section>
+</div>
