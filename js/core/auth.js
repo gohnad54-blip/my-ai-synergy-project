@@ -8,6 +8,56 @@ import { repairStaleSession } from './security.js';
 const SESSION_KEY = 'ai-synergy-session';
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 const REMEMBER_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const LOGIN_ATTEMPTS_KEY = 'ai-synergy-login-attempts';
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
+
+/**
+ * @returns {{ count: number, lockUntil: number }}
+ */
+function getLoginAttemptState() {
+  try {
+    const raw = localStorage.getItem(LOGIN_ATTEMPTS_KEY);
+    if (!raw) {
+      return { count: 0, lockUntil: 0 };
+    }
+    return JSON.parse(raw);
+  } catch {
+    return { count: 0, lockUntil: 0 };
+  }
+}
+
+/**
+ * @returns {number} ms until unlock, 0 if not locked
+ */
+export function getLoginLockoutRemainingMs() {
+  const state = getLoginAttemptState();
+  const now = Date.now();
+
+  if (state.lockUntil > now) {
+    return state.lockUntil - now;
+  }
+
+  if (state.lockUntil > 0 && state.lockUntil <= now) {
+    localStorage.removeItem(LOGIN_ATTEMPTS_KEY);
+  }
+
+  return 0;
+}
+
+function recordLoginFailure() {
+  const state = getLoginAttemptState();
+  const count = state.count + 1;
+  const lockUntil = count >= MAX_LOGIN_ATTEMPTS
+    ? Date.now() + LOGIN_LOCKOUT_MS
+    : 0;
+
+  localStorage.setItem(LOGIN_ATTEMPTS_KEY, JSON.stringify({ count, lockUntil }));
+}
+
+function clearLoginAttempts() {
+  localStorage.removeItem(LOGIN_ATTEMPTS_KEY);
+}
 
 /**
  * @returns {Storage}
@@ -49,6 +99,15 @@ async function resolvePermissions(user) {
  * @returns {Promise<{ success: boolean, user?: object, error?: string }>}
  */
 export async function login(loginName, password, rememberMe = false) {
+  const lockRemaining = getLoginLockoutRemainingMs();
+  if (lockRemaining > 0) {
+    return {
+      success: false,
+      error: 'LOGIN_LOCKED',
+      lockRemainingMs: lockRemaining,
+    };
+  }
+
   try {
     await db.init();
 
@@ -56,6 +115,7 @@ export async function login(loginName, password, rememberMe = false) {
     const stub = matches[0];
 
     if (!stub) {
+      recordLoginFailure();
       return { success: false, error: 'Invalid username or password' };
     }
 
@@ -66,6 +126,7 @@ export async function login(loginName, password, rememberMe = false) {
     );
 
     if (!valid) {
+      recordLoginFailure();
       return { success: false, error: 'Invalid username or password' };
     }
 
@@ -102,6 +163,8 @@ export async function login(loginName, password, rememberMe = false) {
 
     const storage = rememberMe ? localStorage : sessionStorage;
     storage.setItem(SESSION_KEY, JSON.stringify(session));
+
+    clearLoginAttempts();
 
     await logAction('auth.login', user.id, user.login, {}, user.id);
 
@@ -222,4 +285,5 @@ export default {
   isAuthenticated,
   requireAuth,
   repairStaleSession,
+  getLoginLockoutRemainingMs,
 };

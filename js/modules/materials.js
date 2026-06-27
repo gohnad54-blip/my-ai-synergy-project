@@ -5,6 +5,7 @@ import { generateId } from '../core/crypto.js';
 import { logAction } from './log.js';
 import { getSession, hasPermission, isAdmin } from '../core/auth.js';
 import { getCategory } from './categories.js';
+import { stripPlainText } from '../core/security.js';
 
 const MAX_DESCRIPTION = 500;
 
@@ -26,10 +27,10 @@ export function isValidUrl(url) {
  * @returns {string}
  */
 export function sanitizeContent(html) {
-  if (typeof window.DOMPurify !== 'undefined') {
-    return window.DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+  if (typeof window.DOMPurify === 'undefined') {
+    throw new Error('DOMPurify is required to save HTML content');
   }
-  return String(html ?? '').replace(/<[^>]*>/g, '');
+  return window.DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
 }
 
 /**
@@ -83,11 +84,13 @@ function buildPublicSnapshot(material, categoryGuest = false) {
 function normalizeMaterial(material, categoryGuest = false) {
   const normalized = {
     id: material.id ?? generateId('mat'),
-    title: (material.title ?? '').trim(),
-    description: (material.description ?? '').trim().slice(0, MAX_DESCRIPTION),
+    title: stripPlainText(material.title ?? ''),
+    description: stripPlainText(material.description ?? '').slice(0, MAX_DESCRIPTION),
     categoryId: material.categoryId || null,
     status: material.status === 'published' ? 'published' : 'draft',
-    tags: Array.isArray(material.tags) ? material.tags : [],
+    tags: (Array.isArray(material.tags) ? material.tags : [])
+      .map((tag) => stripPlainText(tag))
+      .filter(Boolean),
     contentHtml: sanitizeContent(material.contentHtml ?? ''),
     media: {
       images: material.media?.images ?? [],

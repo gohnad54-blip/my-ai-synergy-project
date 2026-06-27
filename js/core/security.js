@@ -22,6 +22,43 @@ export function escapeHtml(str) {
 }
 
 /**
+ * @param {string} str
+ * @returns {string}
+ */
+export function stripPlainText(str) {
+  return String(str ?? '').replace(/<[^>]*>/g, '').trim();
+}
+
+/**
+ * Безпечний шлях після login (блокує //evil.com та зовнішні URL).
+ * @param {string | null | undefined} raw
+ * @param {string} [fallback='/dashboard']
+ * @returns {string}
+ */
+export function safeReturnPath(raw, fallback = '/dashboard') {
+  if (!raw) {
+    return fallback;
+  }
+
+  try {
+    const decoded = decodeURIComponent(raw);
+    if (!decoded.startsWith('/') || decoded.startsWith('//') || decoded.includes('://')) {
+      return fallback;
+    }
+
+    const url = new URL(decoded, window.location.origin);
+    if (url.origin !== window.location.origin) {
+      return fallback;
+    }
+
+    const path = url.pathname.replace(/\/+$/, '') || '/';
+    return `${path}${url.search}${url.hash}`;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
  * @param {string | null | undefined} src
  * @returns {boolean}
  */
@@ -114,6 +151,8 @@ export function preloadSecurityAssets() {
 
 export default {
   escapeHtml,
+  stripPlainText,
+  safeReturnPath,
   isSafeMediaSrc,
   loadDOMPurify,
   sanitizeHtml,

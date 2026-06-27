@@ -81,6 +81,7 @@
   "login.submit": "Sign in",
   "login.submitting": "Signing in…",
   "login.error": "Sign-in failed",
+  "login.locked": "Too many failed attempts. Try again in {{minutes}} min.",
   "setup.welcome": "Welcome to archive setup",
   "setup.step": "Step 1 of 1: Create administrator",
   "setup.loginLabel": "Admin username",
