@@ -122,7 +122,7 @@ export async function sanitizeHtml(html) {
 }
 
 /**
- * Скидає сесію якщо токен є, а ключ шифрування відсутній (refresh без пароля).
+ * Скидає сесію якщо токен прострочений (ключ шифрування більше не потрібен для Supabase).
  * @returns {boolean} true якщо сесію скинуто
  */
 export function repairStaleSession() {
@@ -131,14 +131,22 @@ export function repairStaleSession() {
     return false;
   }
 
-  if (window.__encKey) {
-    return false;
+  try {
+    const session = JSON.parse(raw);
+    if (session.expiresAt && Date.now() > session.expiresAt) {
+      sessionStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(SESSION_KEY);
+      db.setEncryptionKey(null);
+      return true;
+    }
+  } catch {
+    sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
+    db.setEncryptionKey(null);
+    return true;
   }
 
-  sessionStorage.removeItem(SESSION_KEY);
-  localStorage.removeItem(SESSION_KEY);
-  db.setEncryptionKey(null);
-  return true;
+  return false;
 }
 
 /**

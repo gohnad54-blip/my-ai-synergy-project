@@ -1,215 +1,41 @@
-/** IndexedDB layer (idb) with AES-GCM record encryption */
+/** Data layer — Supabase (replaces IndexedDB from Stage 2) */
 
-import { openDB } from 'https://cdn.jsdelivr.net/npm/idb@8/+esm';
-import { decryptData, encryptData } from './crypto.js';
+import supabase from './supabase.js';
+import {
+  fromDbRow,
+  getIndexColumn,
+  getStoreMeta,
+  toDbRow,
+} from './db-mapper.js';
 
-export const DB_NAME = 'ai-synergy-db';
-export const DB_VERSION = 1;
+export const DB_NAME = 'ai-synergy-supabase';
+export const DB_VERSION = 2;
 
-/** @type {import('idb').IDBPDatabase | null} */
-let dbInstance = null;
-
-const STORE_DEFS = {
-  users: {
-    keyPath: 'id',
-    indexes: [{ name: 'login', keyPath: 'login', options: { unique: true } }],
-    plaintextKeys: ['login', 'passwordHash', 'passwordSalt'],
-  },
-  roles: {
-    keyPath: 'id',
-    indexes: [],
-    plaintextKeys: [],
-  },
-  materials: {
-    keyPath: 'id',
-    indexes: [
-      { name: 'categoryId', keyPath: 'categoryId' },
-      { name: 'status', keyPath: 'status' },
-      { name: 'deletedAt', keyPath: 'deletedAt' },
-    ],
-    plaintextKeys: [
-      'categoryId',
-      'status',
-      'deletedAt',
-      'deletedBy',
-      'title',
-      'description',
-      'authorId',
-      'authorName',
-      'publishedAt',
-      'updatedAt',
-      'guestAccess',
-      'allAuthenticated',
-      'publicPayload',
-    ],
-  },
-  categories: {
-    keyPath: 'id',
-    indexes: [{ name: 'parentId', keyPath: 'parentId' }],
-    plaintextKeys: ['parentId', 'name', 'guestAccess'],
-  },
-  tags: {
-    keyPath: 'id',
-    indexes: [{ name: 'name', keyPath: 'name', options: { unique: true } }],
-    plaintextKeys: ['name'],
-  },
-  actionLog: {
-    keyPath: 'id',
-    indexes: [
-      { name: 'actorId', keyPath: 'actorId' },
-      { name: 'timestamp', keyPath: 'timestamp' },
-    ],
-    plaintextKeys: ['actorId', 'timestamp'],
-  },
-  settings: {
-    keyPath: 'key',
-    indexes: [],
-    plaintextKeys: ['key'],
-    bootstrapKeys: ['initialized'],
-    publicKeys: ['about_text', 'site_name', 'site_description'],
-  },
-  accessRequests: {
-    keyPath: 'id',
-    indexes: [{ name: 'status', keyPath: 'status' }],
-    plaintextKeys: ['status', 'name', 'email', 'telegram', 'reason', 'createdAt', 'processedAt', 'processedBy', 'netlifyId'],
-  },
-};
+/** @type {boolean} */
+let ready = false;
 
 /**
- * @returns {CryptoKey | null}
+ * @param {import('@supabase/supabase-js').PostgrestError} error
+ * @param {string} action
+ * @returns {never}
  */
-function getEncKey() {
-  return window.__encKey ?? null;
+function throwDbError(error, action) {
+  throw new Error(`${action}: ${error.message}`);
 }
 
-/**
- * @param {string} store
- * @returns {boolean}
- */
-function isBootstrapSetting(store, record) {
-  const def = STORE_DEFS[store];
-  return (
-    store === 'settings'
-    && (def.bootstrapKeys?.includes(record.key) || def.publicKeys?.includes(record.key))
-  );
-}
-
-/**
- * @param {string} store
- * @param {Record<string, unknown>} record
- * @returns {Record<string, unknown>}
- */
-function splitRecord(store, record) {
-  const def = STORE_DEFS[store];
-  const keyPath = def.keyPath;
-  const plaintext = {};
-  const sensitive = { ...record };
-
-  plaintext[keyPath] = record[keyPath];
-  delete sensitive[keyPath];
-
-  for (const key of def.plaintextKeys) {
-    if (key in record) {
-      plaintext[key] = record[key];
-      delete sensitive[key];
-    }
-  }
-
-  return { plaintext, sensitive };
-}
-
-/**
- * @param {string} store
- * @param {Record<string, unknown>} record
- * @returns {Promise<Record<string, unknown>>}
- */
-async function wrapRecord(store, record) {
-  if (isBootstrapSetting(store, record)) {
-    return { ...record };
-  }
-
-  const key = getEncKey();
-  if (!key) {
-    throw new Error('Encryption key not set. Log in to write encrypted data.');
-  }
-
-  const { plaintext, sensitive } = splitRecord(store, record);
-  const { ciphertext, iv } = await encryptData(sensitive, key);
-
-  return {
-    ...plaintext,
-    ciphertext,
-    iv,
-  };
-}
-
-/**
- * @param {string} store
- * @param {Record<string, unknown>} stored
- * @returns {Promise<Record<string, unknown> | null>}
- */
-async function unwrapRecord(store, stored) {
-  if (!stored) {
-    return null;
-  }
-
-  if (isBootstrapSetting(store, stored)) {
-    return { ...stored };
-  }
-
-  const { plaintext } = splitRecord(store, stored);
-
-  if (!stored.ciphertext || !stored.iv) {
-    return { ...plaintext };
-  }
-
-  const key = getEncKey();
-  if (!key) {
-    return { ...plaintext };
-  }
-
-  const sensitive = await decryptData(
-    /** @type {string} */ (stored.ciphertext),
-    /** @type {string} */ (stored.iv),
-    key,
-  );
-
-  return { ...plaintext, ...sensitive };
-}
-
-/**
- * @returns {Promise<import('idb').IDBPDatabase>}
- */
-async function getDb() {
-  if (dbInstance) {
-    return dbInstance;
-  }
-
-  dbInstance = await openDB(DB_NAME, DB_VERSION, {
-    upgrade(database) {
-      for (const [name, def] of Object.entries(STORE_DEFS)) {
-        let objectStore;
-        if (!database.objectStoreNames.contains(name)) {
-          objectStore = database.createObjectStore(name, { keyPath: def.keyPath });
-        } else {
-          objectStore = database.transaction(name, 'versionchange').objectStore(name);
-        }
-
-        for (const index of def.indexes) {
-          if (!objectStore.indexNames.contains(index.name)) {
-            objectStore.createIndex(index.name, index.keyPath, index.options ?? {});
-          }
-        }
-      }
-    },
-  });
-
-  return dbInstance;
-}
-
-/** Відкриває БД (ідempotent). */
+/** Відкриває з'єднання з Supabase (ідempotent). */
 export async function init() {
-  return getDb();
+  if (ready) {
+    return true;
+  }
+
+  const { error } = await supabase.from('settings').select('key').limit(1);
+  if (error) {
+    throw new Error(`Supabase unavailable: ${error.message}`);
+  }
+
+  ready = true;
+  return true;
 }
 
 /**
@@ -217,8 +43,17 @@ export async function init() {
  * @returns {Promise<number>}
  */
 export async function count(store) {
-  const database = await getDb();
-  return database.count(store);
+  await init();
+  const { table } = getStoreMeta(store);
+  const { count: total, error } = await supabase
+    .from(table)
+    .select('*', { count: 'exact', head: true });
+
+  if (error) {
+    throwDbError(error, `count(${store})`);
+  }
+
+  return total ?? 0;
 }
 
 /**
@@ -227,28 +62,45 @@ export async function count(store) {
  * @returns {Promise<object | null>}
  */
 export async function get(store, id) {
-  const database = await getDb();
-  const stored = await database.get(store, id);
-  return unwrapRecord(store, stored);
+  await init();
+  const { table, key } = getStoreMeta(store);
+  const { data, error } = await supabase
+    .from(table)
+    .select('*')
+    .eq(key, id)
+    .maybeSingle();
+
+  if (error) {
+    throwDbError(error, `get(${store}, ${id})`);
+  }
+
+  return fromDbRow(data);
 }
 
 /**
  * @param {string} store
  * @param {string} [indexName]
- * @param {IDBValidKey | IDBKeyRange} [query]
+ * @param {IDBKeyRange} [query]
  * @returns {Promise<object[]>}
  */
 export async function getAll(store, indexName, query) {
-  const database = await getDb();
-  let rows;
+  await init();
+  const { table } = getStoreMeta(store);
 
-  if (indexName) {
-    rows = await database.getAllFromIndex(store, indexName, query);
-  } else {
-    rows = await database.getAll(store, query);
+  let request = supabase.from(table).select('*');
+
+  if (indexName === 'deletedAt' && query instanceof IDBKeyRange) {
+    request = request.not('deleted_at', 'is', null).gt('deleted_at', 0);
+  } else if (indexName) {
+    throw new Error(`getAll with index ${indexName} is not supported; use getByIndex`);
   }
 
-  return Promise.all(rows.map((row) => unwrapRecord(store, row)));
+  const { data, error } = await request;
+  if (error) {
+    throwDbError(error, `getAll(${store})`);
+  }
+
+  return (data ?? []).map((row) => fromDbRow(row)).filter(Boolean);
 }
 
 /**
@@ -257,11 +109,16 @@ export async function getAll(store, indexName, query) {
  * @returns {Promise<string>}
  */
 export async function put(store, object) {
-  const database = await getDb();
-  const def = STORE_DEFS[store];
-  const wrapped = await wrapRecord(store, /** @type {Record<string, unknown>} */ (object));
-  await database.put(store, wrapped);
-  return /** @type {string} */ (object[def.keyPath]);
+  await init();
+  const { table, key } = getStoreMeta(store);
+  const row = toDbRow(store, /** @type {Record<string, unknown>} */ (object));
+  const { error } = await supabase.from(table).upsert(row, { onConflict: key });
+
+  if (error) {
+    throwDbError(error, `put(${store})`);
+  }
+
+  return /** @type {string} */ (object[key]);
 }
 
 /**
@@ -270,11 +127,16 @@ export async function put(store, object) {
  * @returns {Promise<void>}
  */
 export async function deleteRecord(store, id) {
-  const database = await getDb();
-  await database.delete(store, id);
+  await init();
+  const { table, key } = getStoreMeta(store);
+  const { error } = await supabase.from(table).delete().eq(key, id);
+
+  if (error) {
+    throwDbError(error, `delete(${store}, ${id})`);
+  }
 }
 
-/** @deprecated Alias for deleteRecord — avoid shadowing JS delete keyword at call sites. */
+/** @deprecated Alias for deleteRecord */
 export const deleteItem = deleteRecord;
 
 /**
@@ -284,9 +146,20 @@ export const deleteItem = deleteRecord;
  * @returns {Promise<object[]>}
  */
 export async function getByIndex(store, indexName, value) {
-  const database = await getDb();
-  const rows = await database.getAllFromIndex(store, indexName, value);
-  return Promise.all(rows.map((row) => unwrapRecord(store, row)));
+  await init();
+  const { table } = getStoreMeta(store);
+  const column = getIndexColumn(store, indexName);
+
+  const { data, error } = await supabase
+    .from(table)
+    .select('*')
+    .eq(column, value);
+
+  if (error) {
+    throwDbError(error, `getByIndex(${store}, ${indexName})`);
+  }
+
+  return (data ?? []).map((row) => fromDbRow(row)).filter(Boolean);
 }
 
 /**
@@ -294,11 +167,17 @@ export async function getByIndex(store, indexName, value) {
  * @returns {Promise<void>}
  */
 export async function clear(store) {
-  const database = await getDb();
-  await database.clear(store);
+  await init();
+  const { table, key } = getStoreMeta(store);
+  const { error } = await supabase.from(table).delete().not(key, 'is', null);
+
+  if (error) {
+    throwDbError(error, `clear(${store})`);
+  }
 }
 
 /**
+ * Залишено для сумісності з backup.js (експорт бекапу шифрується окремо).
  * @param {CryptoKey | null} key
  */
 export function setEncryptionKey(key) {

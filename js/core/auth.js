@@ -246,12 +246,12 @@ export function isAdmin() {
 }
 
 /**
- * Чи є активна сесія з ключем шифрування (потрібно для dashboard).
+ * Чи є активна сесія (потрібно для dashboard).
  * @returns {boolean}
  */
 export function isAuthenticated() {
   repairStaleSession();
-  return Boolean(getSession() && window.__encKey);
+  return Boolean(getSession());
 }
 
 /**

@@ -89,10 +89,6 @@ export async function logAction(
   details = {},
   actorId = null,
 ) {
-  if (!window.__encKey) {
-    return;
-  }
-
   await db.put('actionLog', {
     id: generateId('log'),
     action,
