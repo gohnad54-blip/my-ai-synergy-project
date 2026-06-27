@@ -3,6 +3,9 @@
 import { t } from '../core/i18n.js';
 import { setPageMeta } from '../ui/public.js';
 
+/** Must match name="account-request" in index.html / netlify-forms.html */
+export const NETLIFY_FORM_NAME = 'account-request';
+
 /**
  * @returns {boolean}
  */
@@ -21,18 +24,16 @@ function showSuccessState() {
  * @returns {Promise<void>}
  */
 async function submitToNetlify(formData) {
+  const body = new URLSearchParams(formData);
+  body.set('form-name', NETLIFY_FORM_NAME);
+
   const response = await fetch('/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(formData).toString(),
-    redirect: 'manual',
+    body: body.toString(),
   });
 
-  if (response.status >= 200 && response.status < 400) {
-    return;
-  }
-
-  if (response.status === 0) {
+  if (response.ok) {
     return;
   }
 
@@ -47,10 +48,7 @@ async function saveAccessRequest(payload) {
   await createAccessRequest(payload);
 }
 
-/**
- * @param {{ navigate?: (path: string, replace?: boolean) => Promise<void> }} [ctx]
- */
-export default async function init(ctx = {}) {
+export default async function init() {
   setPageMeta({
     title: t('apply.title'),
     description: t('apply.subtitle'),

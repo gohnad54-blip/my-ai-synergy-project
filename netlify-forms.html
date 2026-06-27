@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Netlify Forms — account-request</title>
+</head>
+<body>
+  <!-- Standalone build-time registration for SPA /apply fetch submit -->
+  <form name="account-request" method="POST" data-netlify="true" netlify netlify-honeypot="bot-field">
+    <input type="hidden" name="form-name" value="account-request">
+    <p hidden>
+      <label>Don’t fill this out: <input name="bot-field"></label>
+    </p>
+    <input type="text" name="name">
+    <input type="email" name="email">
+    <input type="text" name="telegram">
+    <textarea name="reason"></textarea>
+  </form>
+</body>
+</html>

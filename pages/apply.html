@@ -19,7 +19,7 @@
     <h1 class="font-display text-2xl text-neural-glow" data-i18n="apply.title">Подати заявку</h1>
     <p class="mt-2 text-sm text-dim-text" data-i18n="apply.subtitle">Заповніть форму, щоб долучитися до клубу AI Synergy.</p>
 
-    <form id="apply-form" name="account-request" method="POST" action="/" data-netlify="true" netlify-honeypot="bot-field" class="mt-8 space-y-5">
+    <form id="apply-form" name="account-request" class="mt-8 space-y-5">
       <input type="hidden" name="form-name" value="account-request">
       <p class="hidden">
         <label>Don’t fill this out: <input name="bot-field"></label>
@@ -57,12 +57,3 @@
     </form>
   </div>
 </main>
-
-<!-- Netlify build-time form detection -->
-<form name="account-request" data-netlify="true" netlify-honeypot="bot-field" hidden>
-  <input type="hidden" name="form-name" value="account-request">
-  <input name="name">
-  <input name="email">
-  <input name="telegram">
-  <textarea name="reason"></textarea>
-</form>
