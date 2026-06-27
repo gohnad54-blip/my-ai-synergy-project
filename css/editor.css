@@ -6,31 +6,31 @@
 }
 
 .ql-toolbar.ql-snow {
-  background: rgba(13, 13, 43, 0.8);
+  background: rgba(22, 20, 56, 0.85);
   border-radius: 0.5rem 0.5rem 0 0;
 }
 
 .ql-container.ql-snow {
-  background: #050510;
+  background: #0c0c2a;
   border-radius: 0 0 0.5rem 0.5rem;
   min-height: 220px;
 }
 
 .ql-editor {
-  color: #e2e8f0;
+  color: #d8d4e8;
   min-height: 200px;
 }
 
 .ql-snow .ql-stroke {
-  stroke: #94a3b8;
+  stroke: #a8a4bc;
 }
 
 .ql-snow .ql-fill {
-  fill: #94a3b8;
+  fill: #a8a4bc;
 }
 
 .ql-snow .ql-picker-label {
-  color: #94a3b8;
+  color: #a8a4bc;
 }
 
 .ql-snow.ql-toolbar button:hover,
