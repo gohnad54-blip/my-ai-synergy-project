@@ -9,3 +9,7 @@ scripts/
 
 # Internal markdown (specs, audits, TZ)
 *.md
+
+# Dev / config artifacts
+.env
+.env.*

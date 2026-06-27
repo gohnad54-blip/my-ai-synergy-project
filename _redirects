@@ -1,8 +1,14 @@
-/package.json 404!
-/package-lock.json 404!
-/Activation_Prompt_AI_Synergy.md 404!
-/ТЗ_AI_Synergy_Archive (1).md 404!
-/docs/* 404!
-/*.md 404!
-/scripts/* 404!
+# Block internal / sensitive paths (force = 404! overrides static file shadowing)
+/package.json              /404.html  404!
+/package-lock.json         /404.html  404!
+/Activation_Prompt_AI_Synergy.md  /404.html  404!
+/ТЗ_AI_Synergy_Archive%20(1).md    /404.html  404!
+/docs/*                    /404.html  404!
+/*.md                      /404.html  404!
+/scripts/*                 /404.html  404!
+/.netlifyignore            /404.html  404!
+/netlify.toml              /404.html  404!
+/_redirects                /404.html  404!
+
+# SPA fallback (must be last)
 /*  /index.html  200

@@ -1,47 +1,6 @@
 [build]
   publish = "."
 
-# Block internal files even when they exist in the repo (force = true overrides file shadowing)
-[[redirects]]
-  from = "/package.json"
-  status = 404
-  force = true
-
-[[redirects]]
-  from = "/package-lock.json"
-  status = 404
-  force = true
-
-[[redirects]]
-  from = "/Activation_Prompt_AI_Synergy.md"
-  status = 404
-  force = true
-
-[[redirects]]
-  from = "/ТЗ_AI_Synergy_Archive (1).md"
-  status = 404
-  force = true
-
-[[redirects]]
-  from = "/docs/*"
-  status = 404
-  force = true
-
-[[redirects]]
-  from = "/*.md"
-  status = 404
-  force = true
-
-[[redirects]]
-  from = "/scripts/*"
-  status = 404
-  force = true
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
 [[headers]]
   for = "/*"
   [headers.values]
