@@ -1,3 +1,9 @@
+# SPA-friendly aliases (Netlify Forms may redirect to *.html paths)
+/apply.html              /apply  301!
+/login.html              /login  301!
+/about.html              /about  301!
+/setup.html              /setup  301!
+
 # Block internal / sensitive paths (force = 404! overrides static file shadowing)
 /package.json              /404.html  404!
 /package-lock.json         /404.html  404!

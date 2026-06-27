@@ -176,11 +176,18 @@ function initDocumentLinkHandler() {
  * @returns {string}
  */
 function normalizePath(pathname) {
-  const path = pathname.split('?')[0].split('#')[0];
+  let path = pathname.split('?')[0].split('#')[0];
   if (!path || path === '/') {
     return '/';
   }
-  return path.replace(/\/+$/, '') || '/';
+  path = path.replace(/\/+$/, '') || '/';
+  if (path.endsWith('.html')) {
+    path = path.slice(0, -5) || '/';
+  }
+  if (path === '/index') {
+    return '/';
+  }
+  return path;
 }
 
 /**

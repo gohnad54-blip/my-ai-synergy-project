@@ -1,7 +1,6 @@
 /** Apply page — Netlify form + success state */
 
 import { t } from '../core/i18n.js';
-import { createAccessRequest } from '../modules/requests.js';
 import { setPageMeta } from '../ui/public.js';
 
 /**
@@ -15,6 +14,37 @@ function isSuccessUrl() {
 function showSuccessState() {
   document.getElementById('apply-success')?.classList.remove('hidden');
   document.getElementById('apply-form-wrap')?.classList.add('hidden');
+}
+
+/**
+ * @param {FormData} formData
+ * @returns {Promise<void>}
+ */
+async function submitToNetlify(formData) {
+  const response = await fetch('/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(formData).toString(),
+    redirect: 'manual',
+  });
+
+  if (response.status >= 200 && response.status < 400) {
+    return;
+  }
+
+  if (response.status === 0) {
+    return;
+  }
+
+  throw new Error(`Netlify form error (${response.status})`);
+}
+
+/**
+ * @param {{ name: string, email: string, telegram: string | null, reason: string }} payload
+ */
+async function saveAccessRequest(payload) {
+  const { createAccessRequest } = await import('../modules/requests.js');
+  await createAccessRequest(payload);
 }
 
 /**
@@ -37,6 +67,7 @@ export default async function init(ctx = {}) {
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    event.stopPropagation();
 
     const submitBtn = form.querySelector('button[type="submit"]');
     const defaultLabel = submitBtn?.textContent ?? t('apply.submit');
@@ -55,28 +86,19 @@ export default async function init(ctx = {}) {
         reason: String(formData.get('reason') ?? '').trim(),
       };
 
-      const response = await fetch('/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams(formData).toString(),
-      });
+      await submitToNetlify(formData);
 
-      if (!response.ok) {
-        throw new Error(`Netlify form error (${response.status})`);
+      try {
+        await saveAccessRequest({
+          ...payload,
+          telegram: payload.telegram || null,
+        });
+      } catch (dbError) {
+        console.warn('[apply] Supabase save failed (Netlify form was sent):', dbError);
       }
 
-      await createAccessRequest({
-        ...payload,
-        telegram: payload.telegram || null,
-      });
-
+      window.history.replaceState({ path: '/apply' }, '', '/apply?success=1');
       showSuccessState();
-
-      if (typeof ctx.navigate === 'function') {
-        await ctx.navigate('/apply?success=1', true);
-      } else {
-        window.history.replaceState({}, '', '/apply?success=1');
-      }
     } catch (error) {
       console.error('[apply] submit failed:', error);
       window.alert(error instanceof Error ? error.message : t('errors.general'));
@@ -86,5 +108,5 @@ export default async function init(ctx = {}) {
         submitBtn.textContent = defaultLabel;
       }
     }
-  });
+  }, true);
 }
