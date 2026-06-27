@@ -1,5 +1,6 @@
 -- AI Synergy Archive — RLS policies (Stage 2)
 -- Run in Supabase Dashboard → SQL Editor AFTER schema.sql
+-- Then run grants.sql (required — without GRANT, API returns 401)
 --
 -- Custom app auth (not Supabase Auth yet): anon role can read/write all tables.
 -- UI permissions still enforced in js/core/auth.js.
