@@ -132,6 +132,7 @@ export default function init(ctx) {
         role: 'admin',
         status: 'active',
         createdAt: Date.now(),
+        updatedAt: Date.now(),
       };
 
       await db.put('users', user);

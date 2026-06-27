@@ -2,6 +2,7 @@
 
 import supabase from './supabase.js';
 import {
+  applyDefaultTimestamps,
   fromDbRow,
   getIndexColumn,
   getStoreMeta,
@@ -111,7 +112,11 @@ export async function getAll(store, indexName, query) {
 export async function put(store, object) {
   await init();
   const { table, key } = getStoreMeta(store);
-  const row = toDbRow(store, /** @type {Record<string, unknown>} */ (object));
+  const normalized = applyDefaultTimestamps(
+    store,
+    /** @type {Record<string, unknown>} */ (object),
+  );
+  const row = toDbRow(store, normalized);
   const { error } = await supabase.from(table).upsert(row, { onConflict: key });
 
   if (error) {

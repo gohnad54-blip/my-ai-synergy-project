@@ -28,6 +28,45 @@ export const INDEX_COLUMNS = {
   accessRequests: { status: 'status' },
 };
 
+/** @type {Record<string, { created?: boolean, updated?: boolean, timestamp?: boolean }>} */
+export const TIMESTAMP_DEFAULTS = {
+  users: { created: true, updated: true },
+  roles: { created: true, updated: true },
+  categories: { created: true, updated: true },
+  materials: { created: true, updated: true },
+  tags: { created: true },
+  accessRequests: { created: true },
+  actionLog: { timestamp: true },
+};
+
+/**
+ * Fills missing NOT NULL timestamp fields before Supabase upsert.
+ * @param {string} store
+ * @param {Record<string, unknown>} record
+ * @returns {Record<string, unknown>}
+ */
+export function applyDefaultTimestamps(store, record) {
+  const rules = TIMESTAMP_DEFAULTS[store];
+  if (!rules) {
+    return record;
+  }
+
+  const now = Date.now();
+  const next = { ...record };
+
+  if (rules.created && next.createdAt == null) {
+    next.createdAt = now;
+  }
+  if (rules.updated && next.updatedAt == null) {
+    next.updatedAt = now;
+  }
+  if (rules.timestamp && next.timestamp == null) {
+    next.timestamp = now;
+  }
+
+  return next;
+}
+
 /**
  * @param {string} str
  * @returns {string}
