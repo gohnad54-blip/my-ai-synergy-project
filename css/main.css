@@ -8,8 +8,9 @@
   --synapse-blue: #3b82f6;
   --pulse-violet: #7c3aed;
   --neural-glow: #a78bfa;
-  --starfield-white: #d8d4e8;
-  --dim-text: #a8a4bc;
+  --starfield-white: #b8b4c8;
+  --dim-text: #8c889e;
+  --heading-text: #c4c0d4;
   --border-glow: rgba(124, 58, 237, 0.32);
   --success: #10b981;
   --danger: #ef4444;
@@ -56,6 +57,11 @@ body::before {
 
 h1, h2, h3 {
   font-family: 'Orbitron', sans-serif;
+  color: var(--heading-text);
+}
+
+.font-display {
+  color: var(--heading-text);
 }
 
 code, .mono {
@@ -94,7 +100,7 @@ code, .mono {
 .prose-public h3 {
   margin-top: 1.5em;
   margin-bottom: 0.5em;
-  color: var(--neural-glow);
+  color: var(--heading-text);
 }
 
 .prose-public p {

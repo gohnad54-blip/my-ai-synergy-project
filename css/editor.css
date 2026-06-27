@@ -17,20 +17,20 @@
 }
 
 .ql-editor {
-  color: #d8d4e8;
+  color: #b8b4c8;
   min-height: 200px;
 }
 
 .ql-snow .ql-stroke {
-  stroke: #a8a4bc;
+  stroke: #8c889e;
 }
 
 .ql-snow .ql-fill {
-  fill: #a8a4bc;
+  fill: #8c889e;
 }
 
 .ql-snow .ql-picker-label {
-  color: #a8a4bc;
+  color: #8c889e;
 }
 
 .ql-snow.ql-toolbar button:hover,
