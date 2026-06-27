@@ -73,6 +73,7 @@
   "apply.telegram": "Telegram (optional)",
   "apply.reason": "Why do you want to join?",
   "apply.submit": "Submit application",
+  "apply.submitting": "Sending…",
   "apply.successTitle": "Application sent!",
   "apply.successMessage": "We will review your application and contact you by email.",
   "login.title": "Sign in",

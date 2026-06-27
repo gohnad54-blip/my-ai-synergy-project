@@ -73,6 +73,7 @@
   "apply.telegram": "Telegram (необов'язково)",
   "apply.reason": "Чому хочете долучитися?",
   "apply.submit": "Надіслати заявку",
+  "apply.submitting": "Надсилання…",
   "apply.successTitle": "Заявку надіслано!",
   "apply.successMessage": "Ми розглянемо вашу заявку та зв'яжемося з вами електронною поштою.",
   "login.title": "Вхід",

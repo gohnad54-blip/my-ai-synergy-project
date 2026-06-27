@@ -25,7 +25,7 @@ export const INDEX_COLUMNS = {
   categories: { parentId: 'parent_id' },
   tags: { name: 'name' },
   actionLog: { actorId: 'actor_id', timestamp: 'timestamp' },
-  accessRequests: { status: 'status' },
+  accessRequests: { status: 'status', netlifyId: 'netlify_id' },
 };
 
 /** @type {Record<string, { created?: boolean, updated?: boolean, timestamp?: boolean }>} */

@@ -23,6 +23,15 @@ export async function getRequest(id) {
 }
 
 /**
+ * @param {string} netlifyId
+ * @returns {Promise<object | null>}
+ */
+async function findByNetlifyId(netlifyId) {
+  const matches = await db.getByIndex('accessRequests', 'netlifyId', netlifyId);
+  return matches[0] ?? null;
+}
+
+/**
  * @param {object} data
  * @returns {Promise<object>}
  */
@@ -108,18 +117,39 @@ async function importNetlifySubmission(submission) {
     return null;
   }
 
-  const existing = await db.getAll('accessRequests');
-  if (existing.some((item) => item.netlifyId === netlifyId)) {
+  if (await findByNetlifyId(netlifyId)) {
     return null;
   }
 
+  const email = String(data.email ?? submission.email ?? '').trim().toLowerCase();
+  const createdAt = submission.created_at
+    ? new Date(submission.created_at).getTime()
+    : Date.now();
+
+  if (email) {
+    const existing = await getAllRequests();
+    const duplicate = existing.find((item) => {
+      if (item.netlifyId) {
+        return false;
+      }
+      const sameEmail = String(item.email ?? '').trim().toLowerCase() === email;
+      const closeInTime = Math.abs((item.createdAt ?? 0) - createdAt) < 5 * 60 * 1000;
+      return sameEmail && closeInTime;
+    });
+
+    if (duplicate) {
+      await db.put('accessRequests', { ...duplicate, netlifyId });
+      return duplicate;
+    }
+  }
+
   return createAccessRequest({
-    name: data.name ?? data['full-name'] ?? '',
-    email: data.email ?? '',
-    telegram: data.telegram ?? data.Telegram ?? null,
-    reason: data.reason ?? data.message ?? '',
+    name: data.name ?? submission.name ?? data['full-name'] ?? '',
+    email: data.email ?? submission.email ?? '',
+    telegram: data.telegram ?? data.Telegram ?? submission.telegram ?? null,
+    reason: data.reason ?? data.message ?? submission.reason ?? '',
     netlifyId,
-    createdAt: submission.created_at ? new Date(submission.created_at).getTime() : Date.now(),
+    createdAt,
   });
 }
 
@@ -161,8 +191,9 @@ export async function syncFromNetlify() {
   let imported = 0;
 
   for (const submission of submissions) {
+    const before = await findByNetlifyId(submission.id ?? submission.uuid ?? '');
     const created = await importNetlifySubmission(submission);
-    if (created) {
+    if (created && !before) {
       imported += 1;
     }
   }
