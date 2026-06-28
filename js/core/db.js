@@ -1,6 +1,7 @@
 /** Data layer — Supabase (replaces IndexedDB from Stage 2) */
 
 import supabase from './supabase.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../config/supabase.js';
 import {
   applyDefaultTimestamps,
   fromDbRow,
@@ -213,6 +214,7 @@ export async function getSetupStatus() {
 }
 
 /**
+ * Server-side login via Edge Function (never use get_user_for_login RPC).
  * @param {string} login
  * @param {string} password
  * @param {number} expiresAt
@@ -220,23 +222,40 @@ export async function getSetupStatus() {
  */
 export async function verifyAppLogin(login, password, expiresAt) {
   await init();
-  const { data, error } = await supabase.functions.invoke('verify-login', {
-    body: { login, password, expiresAt },
+
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/verify-login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify({ login, password, expiresAt }),
   });
 
-  if (data?.error === 'Account is deactivated') {
+  /** @type {{ sessionToken?: string, user?: object, error?: string } | null} */
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
+  if (payload?.error === 'Account is deactivated') {
     return { success: false, error: 'Account is deactivated' };
   }
 
-  if (error || !data?.sessionToken || !data?.user) {
-    const message = typeof data?.error === 'string' ? data.error : 'Invalid username or password';
-    return { success: false, error: message };
+  if (!response.ok || !payload?.sessionToken || !payload?.user) {
+    return {
+      success: false,
+      error: typeof payload?.error === 'string' ? payload.error : 'Invalid username or password',
+    };
   }
 
   return {
     success: true,
-    sessionToken: data.sessionToken,
-    user: fromDbRow(data.user),
+    sessionToken: payload.sessionToken,
+    user: fromDbRow(payload.user),
   };
 }
 
