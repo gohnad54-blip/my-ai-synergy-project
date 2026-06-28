@@ -1,13 +1,11 @@
 /**
  * Server-side login — verifies PBKDF2 password and creates session in settings.
- * Uses service role; never returns password_hash to the client.
+ * Uses Web Crypto (same as js/core/crypto.js) + service role.
  *
  * Deploy: supabase functions deploy verify-login --no-verify-jwt
- * (anon key invokes this from the browser; JWT verify is handled in function logic)
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1?target=deno';
-import { pbkdf2Sync, randomBytes, timingSafeEqual } from 'node:crypto';
 
 const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS')
   ?? 'https://ai-synergy-archive.netlify.app,http://localhost:3456,http://127.0.0.1:3456')
@@ -30,30 +28,71 @@ function corsHeaders(origin: string | null): Record<string, string> {
 }
 
 /**
- * @param {string} password
- * @param {string} hashB64
- * @param {string} saltB64
+ * @param {string} base64
  */
-function verifyPassword(password: string, hashB64: string, saltB64: string): boolean {
-  try {
-    const salt = Buffer.from(saltB64, 'base64');
-    const expected = Buffer.from(hashB64, 'base64');
-    const derived = pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, expected.length, 'sha256');
-    return timingSafeEqual(derived, expected);
-  } catch {
-    return false;
+function fromBase64(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
   }
+  return bytes;
 }
 
 /**
  * @param {Uint8Array} bytes
  */
-function toBase64Token(bytes: Uint8Array): string {
+function toBase64(bytes: Uint8Array): string {
   let binary = '';
   for (let i = 0; i < bytes.length; i += 1) {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
+}
+
+/**
+ * Matches js/core/crypto.js verifyPassword (PBKDF2-SHA256, 310k iterations).
+ * @param {string} password
+ * @param {string} hashB64
+ * @param {string} saltB64
+ */
+async function verifyPassword(
+  password: string,
+  hashB64: string,
+  saltB64: string,
+): Promise<boolean> {
+  try {
+    const salt = fromBase64(saltB64);
+    const expected = fromBase64(hashB64);
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(password),
+      'PBKDF2',
+      false,
+      ['deriveBits'],
+    );
+    const derivedBuffer = await crypto.subtle.deriveBits(
+      {
+        name: 'PBKDF2',
+        salt,
+        iterations: PBKDF2_ITERATIONS,
+        hash: 'SHA-256',
+      },
+      keyMaterial,
+      expected.length * 8,
+    );
+    const derived = new Uint8Array(derivedBuffer);
+    if (derived.length !== expected.length) {
+      return false;
+    }
+    let diff = 0;
+    for (let i = 0; i < expected.length; i += 1) {
+      diff |= derived[i] ^ expected[i];
+    }
+    return diff === 0;
+  } catch {
+    return false;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -74,7 +113,7 @@ Deno.serve(async (req) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
   if (!supabaseUrl || !serviceRoleKey) {
-    return new Response(JSON.stringify({ error: 'Login failed' }), {
+    return new Response(JSON.stringify({ error: 'Login failed', code: 'config' }), {
       status: 500,
       headers: { ...headers, 'Content-Type': 'application/json' },
     });
@@ -103,7 +142,15 @@ Deno.serve(async (req) => {
       .eq('login', login)
       .maybeSingle();
 
-    if (userError || !user || !verifyPassword(password, user.password_hash, user.password_salt)) {
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Invalid username or password' }), {
+        status: 401,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const passwordOk = await verifyPassword(password, user.password_hash, user.password_salt);
+    if (!passwordOk) {
       return new Response(JSON.stringify({ error: 'Invalid username or password' }), {
         status: 401,
         headers: { ...headers, 'Content-Type': 'application/json' },
@@ -117,7 +164,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const sessionToken = toBase64Token(randomBytes(64));
+    const sessionToken = toBase64(crypto.getRandomValues(new Uint8Array(64)));
 
     const { error: sessionError } = await supabaseAdmin
       .from('settings')
@@ -127,7 +174,8 @@ Deno.serve(async (req) => {
       });
 
     if (sessionError) {
-      return new Response(JSON.stringify({ error: 'Login failed' }), {
+      console.error('[verify-login] session upsert failed:', sessionError.message);
+      return new Response(JSON.stringify({ error: 'Login failed', code: 'session' }), {
         status: 500,
         headers: { ...headers, 'Content-Type': 'application/json' },
       });
@@ -147,8 +195,9 @@ Deno.serve(async (req) => {
       status: 200,
       headers: { ...headers, 'Content-Type': 'application/json' },
     });
-  } catch {
-    return new Response(JSON.stringify({ error: 'Login failed' }), {
+  } catch (err) {
+    console.error('[verify-login] unhandled:', err);
+    return new Response(JSON.stringify({ error: 'Login failed', code: 'exception' }), {
       status: 500,
       headers: { ...headers, 'Content-Type': 'application/json' },
     });

@@ -246,9 +246,12 @@ export async function verifyAppLogin(login, password, expiresAt) {
   }
 
   if (!response.ok || !payload?.sessionToken || !payload?.user) {
+    const fallback = response.status === 500 ? 'Login failed' : 'Invalid username or password';
     return {
       success: false,
-      error: typeof payload?.error === 'string' ? payload.error : 'Invalid username or password',
+      error: typeof payload?.error === 'string' ? payload.error : fallback,
+      status: response.status,
+      code: typeof payload?.code === 'string' ? payload.code : undefined,
     };
   }
 
@@ -256,6 +259,7 @@ export async function verifyAppLogin(login, password, expiresAt) {
     success: true,
     sessionToken: payload.sessionToken,
     user: fromDbRow(payload.user),
+    status: response.status,
   };
 }
 
