@@ -4,6 +4,13 @@
  *
  * Deploy: supabase functions deploy verify-login --no-verify-jwt
  *
+ * Secrets (Supabase auto-injects SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY on deploy).
+ * If login fails with "permission denied for table users":
+ *   1. Dashboard → Settings → API → copy service_role key (NOT anon)
+ *   2. supabase secrets set SUPABASE_SERVICE_ROLE_KEY=eyJ...service_role...
+ *   3. Run supabase/grants-service-role.sql in SQL Editor
+ *   4. Redeploy function
+ *
  * Debug (temporary): supabase secrets set VERIFY_LOGIN_DEBUG=true
  * Logs: Supabase Dashboard → Edge Functions → verify-login → Logs
  * Remove secret after fixing login.
@@ -20,6 +27,71 @@ const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS')
 const PBKDF2_ITERATIONS = 310_000;
 const PBKDF2_HASH_BITS = 256;
 const DEBUG_LOGIN = Deno.env.get('VERIFY_LOGIN_DEBUG') === 'true';
+
+/**
+ * @param {string} jwt
+ * @returns {string | null}
+ */
+function parseJwtRole(jwt: string): string | null {
+  try {
+    const parts = jwt.split('.');
+    if (parts.length < 2) {
+      return null;
+    }
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof payload.role === 'string' ? payload.role : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @returns {{ url: string, serviceRoleKey: string } | { error: string, code: string }}
+ */
+function resolveServiceRoleConfig(): { url: string; serviceRoleKey: string } | { error: string; code: string } {
+  const url = Deno.env.get('SUPABASE_URL')?.trim();
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim();
+
+  if (!url || !serviceRoleKey) {
+    return {
+      error: 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing in Edge Function secrets',
+      code: 'config_missing',
+    };
+  }
+
+  const role = parseJwtRole(serviceRoleKey);
+  if (role !== 'service_role') {
+    return {
+      error: role
+        ? `SUPABASE_SERVICE_ROLE_KEY has role "${role}", expected "service_role" (do not use anon key)`
+        : 'SUPABASE_SERVICE_ROLE_KEY is not a valid JWT',
+      code: 'wrong_api_key',
+    };
+  }
+
+  return { url, serviceRoleKey };
+}
+
+/**
+ * Service-role client — ignores caller Authorization header (browser sends anon key).
+ * @param {string} supabaseUrl
+ * @param {string} serviceRoleKey
+ */
+function createServiceRoleClient(supabaseUrl: string, serviceRoleKey: string) {
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+    global: {
+      headers: {
+        Authorization: `Bearer ${serviceRoleKey}`,
+        apikey: serviceRoleKey,
+      },
+    },
+  });
+}
 
 /**
  * @param {string | null} origin
@@ -225,14 +297,22 @@ Deno.serve(async (req) => {
     });
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    return new Response(JSON.stringify({ error: 'Login failed', code: 'config' }), {
+  const serviceConfig = resolveServiceRoleConfig();
+  if ('error' in serviceConfig) {
+    console.error('[verify-login] config error:', serviceConfig.error);
+    return new Response(JSON.stringify({
+      error: 'Login failed',
+      code: serviceConfig.code,
+    }), {
       status: 500,
       headers: { ...headers, 'Content-Type': 'application/json' },
     });
+  }
+
+  const { url: supabaseUrl, serviceRoleKey } = serviceConfig;
+
+  if (DEBUG_LOGIN) {
+    console.log('[verify-login][debug] using service_role key, ref:', parseJwtRole(serviceRoleKey) ?? 'unknown');
   }
 
   try {
@@ -261,9 +341,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    const supabaseAdmin = createServiceRoleClient(supabaseUrl, serviceRoleKey);
 
     const { data: user, error: userError } = await supabaseAdmin
       .from('users')
@@ -271,8 +349,20 @@ Deno.serve(async (req) => {
       .eq('login', login)
       .maybeSingle();
 
-    if (userError || !user) {
-      console.error('[verify-login] user lookup failed:', userError?.message ?? 'not found', login);
+    if (userError) {
+      console.error('[verify-login] user lookup error:', userError.message, login);
+      const isPermissionDenied = userError.message.includes('permission denied');
+      return new Response(JSON.stringify({
+        error: isPermissionDenied ? 'Login failed' : 'Invalid username or password',
+        code: isPermissionDenied ? 'service_role_denied' : 'auth_failed',
+      }), {
+        status: isPermissionDenied ? 500 : 401,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!user) {
+      console.error('[verify-login] user not found:', login);
       return new Response(JSON.stringify({
         error: 'Invalid username or password',
         code: 'auth_failed',
