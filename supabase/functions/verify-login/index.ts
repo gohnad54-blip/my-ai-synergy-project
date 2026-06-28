@@ -14,14 +14,33 @@ const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS')
   .filter(Boolean);
 
 const PBKDF2_ITERATIONS = 310_000;
+const PBKDF2_HASH_BITS = 256;
+
+/**
+ * @param {string | null} origin
+ */
+function isAllowedOrigin(origin: string | null): boolean {
+  if (!origin) {
+    return false;
+  }
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    return true;
+  }
+  try {
+    const { hostname, protocol } = new URL(origin);
+    return protocol === 'https:' && hostname.endsWith('.netlify.app');
+  } catch {
+    return false;
+  }
+}
 
 /**
  * @param {string | null} origin
  */
 function corsHeaders(origin: string | null): Record<string, string> {
-  const allowed = origin && ALLOWED_ORIGINS.includes(origin);
+  const allowed = isAllowedOrigin(origin);
   return {
-    'Access-Control-Allow-Origin': allowed ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Origin': allowed && origin ? origin : ALLOWED_ORIGINS[0],
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
@@ -79,7 +98,7 @@ async function verifyPassword(
         hash: 'SHA-256',
       },
       keyMaterial,
-      expected.length * 8,
+      PBKDF2_HASH_BITS,
     );
     const derived = new Uint8Array(derivedBuffer);
     if (derived.length !== expected.length) {
@@ -126,7 +145,10 @@ Deno.serve(async (req) => {
     const expiresAt = Number(body.expiresAt);
 
     if (!login || !password || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-      return new Response(JSON.stringify({ error: 'Invalid username or password' }), {
+      return new Response(JSON.stringify({
+        error: 'Invalid username or password',
+        code: 'invalid_request',
+      }), {
         status: 401,
         headers: { ...headers, 'Content-Type': 'application/json' },
       });
@@ -143,7 +165,22 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Invalid username or password' }), {
+      console.error('[verify-login] user lookup failed:', userError?.message ?? 'not found', login);
+      return new Response(JSON.stringify({
+        error: 'Invalid username or password',
+        code: 'auth_failed',
+      }), {
+        status: 401,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!user.password_hash || !user.password_salt) {
+      console.error('[verify-login] missing password hash/salt for login:', login);
+      return new Response(JSON.stringify({
+        error: 'Invalid username or password',
+        code: 'auth_failed',
+      }), {
         status: 401,
         headers: { ...headers, 'Content-Type': 'application/json' },
       });
@@ -151,7 +188,11 @@ Deno.serve(async (req) => {
 
     const passwordOk = await verifyPassword(password, user.password_hash, user.password_salt);
     if (!passwordOk) {
-      return new Response(JSON.stringify({ error: 'Invalid username or password' }), {
+      console.error('[verify-login] password mismatch for login:', login);
+      return new Response(JSON.stringify({
+        error: 'Invalid username or password',
+        code: 'auth_failed',
+      }), {
         status: 401,
         headers: { ...headers, 'Content-Type': 'application/json' },
       });
