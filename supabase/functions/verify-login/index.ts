@@ -3,6 +3,10 @@
  * Uses Web Crypto (same as js/core/crypto.js) + service role.
  *
  * Deploy: supabase functions deploy verify-login --no-verify-jwt
+ *
+ * Debug (temporary): supabase secrets set VERIFY_LOGIN_DEBUG=true
+ * Logs: Supabase Dashboard → Edge Functions → verify-login → Logs
+ * Remove secret after fixing login.
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1?target=deno';
@@ -15,6 +19,7 @@ const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS')
 
 const PBKDF2_ITERATIONS = 310_000;
 const PBKDF2_HASH_BITS = 256;
+const DEBUG_LOGIN = Deno.env.get('VERIFY_LOGIN_DEBUG') === 'true';
 
 /**
  * @param {string | null} origin
@@ -46,9 +51,7 @@ function corsHeaders(origin: string | null): Record<string, string> {
   };
 }
 
-/**
- * @param {string} base64
- */
+/** Mirrors js/core/crypto.js fromBase64 */
 function fromBase64(base64: string): Uint8Array {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -58,9 +61,7 @@ function fromBase64(base64: string): Uint8Array {
   return bytes;
 }
 
-/**
- * @param {Uint8Array} bytes
- */
+/** Mirrors js/core/crypto.js toBase64 */
 function toBase64(bytes: Uint8Array): string {
   let binary = '';
   for (let i = 0; i < bytes.length; i += 1) {
@@ -70,19 +71,41 @@ function toBase64(bytes: Uint8Array): string {
 }
 
 /**
- * Matches js/core/crypto.js verifyPassword (PBKDF2-SHA256, 310k iterations).
+ * @param {string} b64
+ */
+function base64RoundtripOk(b64: string): boolean {
+  try {
+    return toBase64(fromBase64(b64)) === b64;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * @param {Uint8Array} a
+ * @param {Uint8Array} b
+ */
+function firstDiffIndex(a: Uint8Array, b: Uint8Array): number {
+  const len = Math.min(a.length, b.length);
+  for (let i = 0; i < len; i += 1) {
+    if (a[i] !== b[i]) {
+      return i;
+    }
+  }
+  return a.length === b.length ? -1 : len;
+}
+
+/**
+ * Same PBKDF2 as js/core/crypto.js hashPassword (deriveBits 256).
  * @param {string} password
- * @param {string} hashB64
  * @param {string} saltB64
  */
-async function verifyPassword(
+async function computePasswordHashB64(
   password: string,
-  hashB64: string,
   saltB64: string,
-): Promise<boolean> {
+): Promise<{ hashB64: string; saltBytes: number; hashBytes: number } | null> {
   try {
     const salt = fromBase64(saltB64);
-    const expected = fromBase64(hashB64);
     const keyMaterial = await crypto.subtle.importKey(
       'raw',
       new TextEncoder().encode(password),
@@ -101,17 +124,91 @@ async function verifyPassword(
       PBKDF2_HASH_BITS,
     );
     const derived = new Uint8Array(derivedBuffer);
-    if (derived.length !== expected.length) {
-      return false;
+    return {
+      hashB64: toBase64(derived),
+      saltBytes: salt.length,
+      hashBytes: derived.length,
+    };
+  } catch (err) {
+    if (DEBUG_LOGIN) {
+      console.error('[verify-login][debug] computePasswordHashB64 error:', err);
     }
-    let diff = 0;
-    for (let i = 0; i < expected.length; i += 1) {
-      diff |= derived[i] ^ expected[i];
+    return null;
+  }
+}
+
+/**
+ * @param {string} login
+ * @param {string} password
+ * @param {string} dbHashB64
+ * @param {string} dbSaltB64
+ */
+async function verifyPasswordWithDebug(
+  login: string,
+  password: string,
+  dbHashB64: string,
+  dbSaltB64: string,
+): Promise<boolean> {
+  const hashB64 = dbHashB64.trim();
+  const saltB64 = dbSaltB64.trim();
+
+  const computed = await computePasswordHashB64(password, saltB64);
+  if (!computed) {
+    if (DEBUG_LOGIN) {
+      console.log('[verify-login][debug]', JSON.stringify({
+        login,
+        stage: 'compute_failed',
+        dbHash: hashB64,
+        dbSaltLen: saltB64.length,
+      }));
     }
-    return diff === 0;
-  } catch {
     return false;
   }
+
+  let expectedBytes: Uint8Array;
+  try {
+    expectedBytes = fromBase64(hashB64);
+  } catch (err) {
+    if (DEBUG_LOGIN) {
+      console.log('[verify-login][debug]', JSON.stringify({
+        login,
+        stage: 'db_hash_decode_failed',
+        dbHash: hashB64,
+        error: String(err),
+      }));
+    }
+    return false;
+  }
+
+  const derivedBytes = fromBase64(computed.hashB64);
+  const match = computed.hashB64 === hashB64
+    && derivedBytes.length === expectedBytes.length
+    && firstDiffIndex(derivedBytes, expectedBytes) === -1;
+
+  if (DEBUG_LOGIN) {
+    console.log('[verify-login][debug]', JSON.stringify({
+      login,
+      passwordLen: password.length,
+      dbHash: hashB64,
+      computedHash: computed.hashB64,
+      hashesEqual: computed.hashB64 === hashB64,
+      dbHashLen: hashB64.length,
+      computedHashLen: computed.hashB64.length,
+      dbHashBytes: expectedBytes.length,
+      computedHashBytes: computed.hashBytes,
+      saltLen: saltB64.length,
+      saltBytes: computed.saltBytes,
+      dbHashTrimmed: hashB64 !== dbHashB64,
+      dbSaltTrimmed: saltB64 !== dbSaltB64,
+      dbHashBase64Roundtrip: base64RoundtripOk(hashB64),
+      dbSaltBase64Roundtrip: base64RoundtripOk(saltB64),
+      computedHashBase64Roundtrip: base64RoundtripOk(computed.hashB64),
+      firstByteDiff: firstDiffIndex(derivedBytes, expectedBytes),
+      pbkdf2: { iterations: PBKDF2_ITERATIONS, hash: 'SHA-256', bits: PBKDF2_HASH_BITS },
+    }));
+  }
+
+  return match;
 }
 
 Deno.serve(async (req) => {
@@ -143,6 +240,16 @@ Deno.serve(async (req) => {
     const login = typeof body.login === 'string' ? body.login.trim() : '';
     const password = typeof body.password === 'string' ? body.password : '';
     const expiresAt = Number(body.expiresAt);
+
+    if (DEBUG_LOGIN) {
+      console.log('[verify-login][debug] request', JSON.stringify({
+        login,
+        passwordLen: password.length,
+        expiresAt,
+        expiresAtValid: Number.isFinite(expiresAt) && expiresAt > Date.now(),
+        now: Date.now(),
+      }));
+    }
 
     if (!login || !password || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
       return new Response(JSON.stringify({
@@ -186,7 +293,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const passwordOk = await verifyPassword(password, user.password_hash, user.password_salt);
+    const passwordOk = await verifyPasswordWithDebug(
+      login,
+      password,
+      user.password_hash,
+      user.password_salt,
+    );
     if (!passwordOk) {
       console.error('[verify-login] password mismatch for login:', login);
       return new Response(JSON.stringify({
