@@ -38,6 +38,7 @@ const routeList = [
   { pattern: '/dashboard/requests', page: 'dashboard/requests', auth: true, permission: 'requests.view' },
   { pattern: '/dashboard/trash', page: 'dashboard/trash', auth: true, permission: 'content.delete.soft' },
   { pattern: '/dashboard/log', page: 'dashboard/log', auth: true, adminOnly: true },
+  { pattern: '/dashboard/comments', page: 'dashboard/comments', auth: true, adminOnly: true },
   { pattern: '/dashboard/settings', page: 'dashboard/settings', auth: true, adminOnly: true },
   { pattern: '/dashboard', page: 'dashboard/index', auth: true, permission: null },
   { pattern: '/materials/:id', page: 'material', auth: false },

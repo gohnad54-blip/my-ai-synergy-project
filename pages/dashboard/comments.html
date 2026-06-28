@@ -1,0 +1,22 @@
+<div class="dashboard-page">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <h1 class="font-display text-2xl text-neural-glow" data-i18n="dashComments.title">Коментарі</h1>
+    <button type="button" id="comments-write-btn"
+      class="rounded-lg bg-pulse-violet px-4 py-2 text-sm font-medium hover:shadow-[0_0_16px_rgba(124,58,237,0.4)]"
+      data-i18n="dashComments.write">
+      Написати коментар
+    </button>
+  </div>
+
+  <div class="mt-6">
+    <label class="block text-sm">
+      <span class="mb-1 block text-dim-text" data-i18n="dashComments.filterMaterial">Фільтр: матеріал</span>
+      <select id="comments-filter-material"
+        class="min-w-[240px] max-w-full rounded-lg border border-pulse-violet/30 bg-space-void px-3 py-2 text-sm"></select>
+    </label>
+  </div>
+
+  <div id="comments-admin-list" class="mt-6 space-y-3">
+    <p class="text-sm text-dim-text" data-i18n="common.loading">Завантаження…</p>
+  </div>
+</div>

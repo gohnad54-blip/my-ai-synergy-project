@@ -25,6 +25,7 @@ const SIDEBAR_NAV = [
   { href: '/dashboard/requests', labelKey: 'dashboard.requests', icon: '📋', permission: 'requests.view' },
   { href: '/dashboard/roles', labelKey: 'dashboard.roles', icon: '🛡️', adminOnly: true },
   { href: '/dashboard/log', labelKey: 'dashboard.log', icon: '📜', adminOnly: true },
+  { href: '/dashboard/comments', labelKey: 'dashboard.comments', icon: '💬', adminOnly: true },
   { href: '/dashboard/settings', labelKey: 'dashboard.settings', icon: '⚙️', adminOnly: true },
 ];
 
@@ -300,6 +301,7 @@ function getDashboardTitle(path) {
     '/dashboard/roles': t('dashboard.roles'),
     '/dashboard/requests': t('dashboard.requests'),
     '/dashboard/log': t('dashboard.log'),
+    '/dashboard/comments': t('dashboard.comments'),
     '/dashboard/settings': t('dashboard.settings'),
   };
 

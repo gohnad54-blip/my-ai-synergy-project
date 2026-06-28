@@ -65,6 +65,30 @@ function recordCommentSubmit() {
 }
 
 /**
+ * @param {string} [materialId]
+ * @returns {Promise<object[]>}
+ */
+export async function getAllComments(materialId) {
+  await db.init();
+  let query = supabase
+    .from('comments')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (materialId) {
+    query = query.eq('material_id', materialId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`getAllComments: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => fromDbRow(row)).filter(Boolean);
+}
+
+/**
  * @param {string} materialId
  * @returns {Promise<object[]>}
  */
@@ -96,7 +120,7 @@ export async function addComment(materialId, body) {
   if (text.length > MAX_COMMENT_LENGTH) {
     throw new Error('COMMENT_TOO_LONG');
   }
-  if (!isRateLimitOk()) {
+  if (!isRateLimitOk() && !isAdmin()) {
     throw new Error('COMMENT_RATE_LIMIT');
   }
 
@@ -173,6 +197,7 @@ export default {
   areCommentsVisible,
   isRateLimitOk,
   getCommentsForMaterial,
+  getAllComments,
   addComment,
   canDeleteComment,
   deleteComment,
