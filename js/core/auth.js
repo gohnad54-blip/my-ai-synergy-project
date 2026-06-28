@@ -1,7 +1,7 @@
 /** Authentication — sessions, permissions, login/logout */
 
 import db from './db.js';
-import { deriveEncryptionKey, verifyPassword } from './crypto.js';
+import { deriveEncryptionKey } from './crypto.js';
 import { logAction } from '../modules/log.js';
 import { repairStaleSession } from './security.js';
 
@@ -60,26 +60,6 @@ function clearLoginAttempts() {
 }
 
 /**
- * @returns {Storage}
- */
-function getActiveStorage() {
-  return localStorage.getItem(SESSION_KEY) ? localStorage : sessionStorage;
-}
-
-/**
- * @param {string} token
- * @returns {string}
- */
-function toBase64Token(token) {
-  const bytes = new Uint8Array(token);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-/**
  * @param {object} user
  * @returns {Promise<string[]>}
  */
@@ -111,23 +91,18 @@ export async function login(loginName, password, rememberMe = false) {
   try {
     await db.init();
 
-    const user = await db.getUserForLogin(loginName.trim());
+    const expiresAt = Date.now() + (rememberMe ? REMEMBER_TTL_MS : SESSION_TTL_MS);
+    const authResult = await db.verifyAppLogin(loginName.trim(), password, expiresAt);
 
-    if (!user) {
+    if (!authResult.success || !authResult.user || !authResult.sessionToken) {
       recordLoginFailure();
-      return { success: false, error: 'Invalid username or password' };
+      return {
+        success: false,
+        error: authResult.error ?? 'Invalid username or password',
+      };
     }
 
-    const valid = await verifyPassword(
-      password,
-      user.passwordHash,
-      user.passwordSalt,
-    );
-
-    if (!valid) {
-      recordLoginFailure();
-      return { success: false, error: 'Invalid username or password' };
-    }
+    const user = authResult.user;
 
     if (user.status === 'inactive') {
       return { success: false, error: 'Account is deactivated' };
@@ -136,9 +111,7 @@ export async function login(loginName, password, rememberMe = false) {
     const encKey = await deriveEncryptionKey(password, user.passwordSalt);
     db.setEncryptionKey(encKey);
 
-    const tokenBytes = crypto.getRandomValues(new Uint8Array(64));
-    const token = toBase64Token(tokenBytes);
-    const expiresAt = Date.now() + (rememberMe ? REMEMBER_TTL_MS : SESSION_TTL_MS);
+    const token = authResult.sessionToken;
 
     sessionStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(SESSION_KEY);
@@ -153,8 +126,6 @@ export async function login(loginName, password, rememberMe = false) {
       token,
     };
     storage.setItem(SESSION_KEY, JSON.stringify(session));
-
-    await db.createAppSession(token, user.id, expiresAt);
 
     session.permissions = await resolvePermissions(user);
     storage.setItem(SESSION_KEY, JSON.stringify(session));

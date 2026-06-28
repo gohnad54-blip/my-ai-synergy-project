@@ -112,8 +112,8 @@ export default function init(ctx) {
     try {
       await db.init();
 
-      const existing = await db.getUserForLogin(loginValue);
-      if (existing) {
+      const loginTaken = !(await db.isLoginAvailable(loginValue));
+      if (loginTaken) {
         showError(errorEl, 'Цей логін уже зайнятий');
         return;
       }

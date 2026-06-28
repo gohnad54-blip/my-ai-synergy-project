@@ -214,33 +214,43 @@ export async function getSetupStatus() {
 
 /**
  * @param {string} login
- * @returns {Promise<object | null>}
+ * @param {string} password
+ * @param {number} expiresAt
+ * @returns {Promise<{ success: boolean, sessionToken?: string, user?: object, error?: string }>}
  */
-export async function getUserForLogin(login) {
+export async function verifyAppLogin(login, password, expiresAt) {
   await init();
-  const { data, error } = await supabase.rpc('get_user_for_login', { p_login: login });
-  if (error) {
-    throwDbError(error, 'getUserForLogin');
+  const { data, error } = await supabase.functions.invoke('verify-login', {
+    body: { login, password, expiresAt },
+  });
+
+  if (data?.error === 'Account is deactivated') {
+    return { success: false, error: 'Account is deactivated' };
   }
-  return fromDbRow(data);
+
+  if (error || !data?.sessionToken || !data?.user) {
+    const message = typeof data?.error === 'string' ? data.error : 'Invalid username or password';
+    return { success: false, error: message };
+  }
+
+  return {
+    success: true,
+    sessionToken: data.sessionToken,
+    user: fromDbRow(data.user),
+  };
 }
 
 /**
- * @param {string} token
- * @param {string} userId
- * @param {number} expiresAt
- * @returns {Promise<void>}
+ * @param {string} login
+ * @returns {Promise<boolean>}
  */
-export async function createAppSession(token, userId, expiresAt) {
+export async function isLoginAvailable(login) {
   await init();
-  const { error } = await supabase.rpc('create_app_session', {
-    p_token: token,
-    p_user_id: userId,
-    p_expires_at: expiresAt,
-  });
+  const { data, error } = await supabase.rpc('check_login_available', { p_login: login });
   if (error) {
-    throwDbError(error, 'createAppSession');
+    throwDbError(error, 'isLoginAvailable');
   }
+  return Boolean(data);
 }
 
 /**
@@ -290,8 +300,8 @@ const db = {
   setEncryptionKey,
   isInitialized,
   getSetupStatus,
-  getUserForLogin,
-  createAppSession,
+  verifyAppLogin,
+  isLoginAvailable,
   deleteAppSession,
   submitAccessRequestPublic,
   DB_NAME,

@@ -10,7 +10,9 @@
 -- After running this script the site WILL break until app code is updated to:
 --   1. Send x-app-session header on every Supabase request
 --   2. Call create_app_session() after login, delete_app_session() on logout
---   3. Use RPC: get_setup_status(), get_user_for_login(), submit_access_request()
+--   3. Deploy Edge Function verify-login (see supabase/functions/verify-login/)
+--   4. Use RPC: get_setup_status(), check_login_available(), submit_access_request()
+--   5. Run rls-critical-fix.sql to revoke get_user_for_login / create_app_session
 --
 -- Do NOT run until you confirm. Reply «виконано» after applying in Dashboard.
 -- Applied: secure RLS active; app sends x-app-session header (see js/core/supabase.js).
@@ -81,7 +83,7 @@ GRANT EXECUTE ON FUNCTION public.app_session_user_id() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.is_app_authenticated() TO anon, authenticated;
 
 -- ---------------------------------------------------------------------------
--- 3. Session RPC (login / logout — called from app after password verify)
+-- 3. Session RPC (logout only — login via Edge Function verify-login)
 -- ---------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.create_app_session(
@@ -129,11 +131,11 @@ $$;
 
 REVOKE ALL ON FUNCTION public.create_app_session(TEXT, TEXT, BIGINT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.delete_app_session(TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.create_app_session(TEXT, TEXT, BIGINT) TO anon, authenticated;
+-- create_app_session: NOT granted to anon — only Edge Function (service role) creates sessions
 GRANT EXECUTE ON FUNCTION public.delete_app_session(TEXT) TO anon, authenticated;
 
 -- ---------------------------------------------------------------------------
--- 4. Setup / login / public form RPC
+-- 4. Setup / public form RPC
 -- ---------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.get_setup_status()
@@ -153,17 +155,16 @@ AS $$
   );
 $$;
 
-CREATE OR REPLACE FUNCTION public.get_user_for_login(p_login TEXT)
-RETURNS JSONB
+CREATE OR REPLACE FUNCTION public.check_login_available(p_login TEXT)
+RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT to_jsonb(u)
-  FROM public.users u
-  WHERE u.login = trim(p_login)
-  LIMIT 1;
+  SELECT NOT EXISTS (
+    SELECT 1 FROM public.users WHERE login = trim(p_login)
+  );
 $$;
 
 CREATE OR REPLACE FUNCTION public.submit_access_request(
@@ -207,10 +208,10 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.get_setup_status() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.get_user_for_login(TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.check_login_available(TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.submit_access_request(TEXT, TEXT, TEXT, TEXT, TEXT, BIGINT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_setup_status() TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.get_user_for_login(TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_login_available(TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.submit_access_request(TEXT, TEXT, TEXT, TEXT, TEXT, BIGINT) TO anon, authenticated;
 
 -- ---------------------------------------------------------------------------
