@@ -197,6 +197,87 @@ export async function isInitialized() {
   return setting?.value === true;
 }
 
+/**
+ * @returns {Promise<{ userCount: number, initialized: boolean }>}
+ */
+export async function getSetupStatus() {
+  await init();
+  const { data, error } = await supabase.rpc('get_setup_status');
+  if (error) {
+    throwDbError(error, 'getSetupStatus');
+  }
+  return {
+    userCount: data?.userCount ?? 0,
+    initialized: Boolean(data?.initialized),
+  };
+}
+
+/**
+ * @param {string} login
+ * @returns {Promise<object | null>}
+ */
+export async function getUserForLogin(login) {
+  await init();
+  const { data, error } = await supabase.rpc('get_user_for_login', { p_login: login });
+  if (error) {
+    throwDbError(error, 'getUserForLogin');
+  }
+  return fromDbRow(data);
+}
+
+/**
+ * @param {string} token
+ * @param {string} userId
+ * @param {number} expiresAt
+ * @returns {Promise<void>}
+ */
+export async function createAppSession(token, userId, expiresAt) {
+  await init();
+  const { error } = await supabase.rpc('create_app_session', {
+    p_token: token,
+    p_user_id: userId,
+    p_expires_at: expiresAt,
+  });
+  if (error) {
+    throwDbError(error, 'createAppSession');
+  }
+}
+
+/**
+ * @param {string} token
+ * @returns {Promise<void>}
+ */
+export async function deleteAppSession(token) {
+  if (!token) {
+    return;
+  }
+  await init();
+  const { error } = await supabase.rpc('delete_app_session', { p_token: token });
+  if (error) {
+    throwDbError(error, 'deleteAppSession');
+  }
+}
+
+/**
+ * @param {object} request
+ * @returns {Promise<string>}
+ */
+export async function submitAccessRequestPublic(request) {
+  await init();
+  const { data, error } = await supabase.rpc('submit_access_request', {
+    p_id: request.id,
+    p_name: request.name,
+    p_email: request.email,
+    p_telegram: request.telegram,
+    p_reason: request.reason,
+    p_created_at: request.createdAt,
+  });
+  if (error) {
+    throwDbError(error, 'submitAccessRequest');
+  }
+  return /** @type {string} */ (data);
+}
+
 const db = {
   init,
   count,
@@ -208,6 +289,11 @@ const db = {
   clear,
   setEncryptionKey,
   isInitialized,
+  getSetupStatus,
+  getUserForLogin,
+  createAppSession,
+  deleteAppSession,
+  submitAccessRequestPublic,
   DB_NAME,
   DB_VERSION,
 };

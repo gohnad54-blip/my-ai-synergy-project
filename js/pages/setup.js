@@ -112,8 +112,8 @@ export default function init(ctx) {
     try {
       await db.init();
 
-      const existing = await db.getByIndex('users', 'login', loginValue);
-      if (existing.length > 0) {
+      const existing = await db.getUserForLogin(loginValue);
+      if (existing) {
         showError(errorEl, 'Цей логін уже зайнятий');
         return;
       }
@@ -138,8 +138,6 @@ export default function init(ctx) {
       await db.put('users', user);
       await markInitialized();
 
-      await logAction('users.create', userId, loginValue, { setup: true }, userId);
-
       const authResult = await login(loginValue, password);
 
       if (!authResult.success) {
@@ -147,6 +145,8 @@ export default function init(ctx) {
         await ctx.navigate('/login', true);
         return;
       }
+
+      await logAction('users.create', userId, loginValue, { setup: true }, userId);
 
       await ctx.navigate('/dashboard', true);
     } catch (error) {

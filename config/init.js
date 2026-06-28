@@ -10,8 +10,7 @@ import db from '../js/core/db.js';
 export async function checkInitialization() {
   await db.init();
 
-  const userCount = await db.count('users');
-  const initialized = await db.isInitialized();
+  const { userCount, initialized } = await db.getSetupStatus();
 
   window.__needsSetup = userCount === 0 || !initialized;
 

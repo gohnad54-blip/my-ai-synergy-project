@@ -111,18 +111,17 @@ export async function login(loginName, password, rememberMe = false) {
   try {
     await db.init();
 
-    const matches = await db.getByIndex('users', 'login', loginName.trim());
-    const stub = matches[0];
+    const user = await db.getUserForLogin(loginName.trim());
 
-    if (!stub) {
+    if (!user) {
       recordLoginFailure();
       return { success: false, error: 'Invalid username or password' };
     }
 
     const valid = await verifyPassword(
       password,
-      stub.passwordHash,
-      stub.passwordSalt,
+      user.passwordHash,
+      user.passwordSalt,
     );
 
     if (!valid) {
@@ -130,38 +129,34 @@ export async function login(loginName, password, rememberMe = false) {
       return { success: false, error: 'Invalid username or password' };
     }
 
-    const encKey = await deriveEncryptionKey(password, stub.passwordSalt);
-    db.setEncryptionKey(encKey);
-
-    const user = await db.get('users', stub.id);
-
-    if (!user) {
-      db.setEncryptionKey(null);
-      return { success: false, error: 'User record not found' };
-    }
-
     if (user.status === 'inactive') {
-      db.setEncryptionKey(null);
       return { success: false, error: 'Account is deactivated' };
     }
 
-    const permissions = await resolvePermissions(user);
-    const tokenBytes = crypto.getRandomValues(new Uint8Array(64));
-    const expiresAt = Date.now() + (rememberMe ? REMEMBER_TTL_MS : SESSION_TTL_MS);
+    const encKey = await deriveEncryptionKey(password, user.passwordSalt);
+    db.setEncryptionKey(encKey);
 
-    const session = {
-      userId: user.id,
-      role: user.role,
-      permissions,
-      displayName: user.displayName ?? user.login,
-      expiresAt,
-      token: toBase64Token(tokenBytes),
-    };
+    const tokenBytes = crypto.getRandomValues(new Uint8Array(64));
+    const token = toBase64Token(tokenBytes);
+    const expiresAt = Date.now() + (rememberMe ? REMEMBER_TTL_MS : SESSION_TTL_MS);
 
     sessionStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(SESSION_KEY);
 
     const storage = rememberMe ? localStorage : sessionStorage;
+    const session = {
+      userId: user.id,
+      role: user.role,
+      permissions: [],
+      displayName: user.displayName ?? user.login,
+      expiresAt,
+      token,
+    };
+    storage.setItem(SESSION_KEY, JSON.stringify(session));
+
+    await db.createAppSession(token, user.id, expiresAt);
+
+    session.permissions = await resolvePermissions(user);
     storage.setItem(SESSION_KEY, JSON.stringify(session));
 
     clearLoginAttempts();
@@ -181,6 +176,10 @@ export async function login(loginName, password, rememberMe = false) {
 /** Очищає сесію та ключ шифрування. */
 export function logout() {
   const session = getSession();
+
+  if (session?.token) {
+    db.deleteAppSession(session.token).catch(() => {});
+  }
 
   if (session && window.__encKey) {
     logAction('auth.logout', session.userId, null, {}, session.userId).catch(() => {});

@@ -49,6 +49,11 @@ export async function createAccessRequest(data) {
     createdAt: data.createdAt ?? Date.now(),
   };
 
+  if (!getSession()) {
+    await db.submitAccessRequestPublic(request);
+    return request;
+  }
+
   await db.put('accessRequests', request);
   return request;
 }

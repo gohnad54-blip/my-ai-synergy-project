@@ -134,6 +134,9 @@ export function repairStaleSession() {
   try {
     const session = JSON.parse(raw);
     if (session.expiresAt && Date.now() > session.expiresAt) {
+      if (session.token) {
+        db.deleteAppSession(session.token).catch(() => {});
+      }
       sessionStorage.removeItem(SESSION_KEY);
       localStorage.removeItem(SESSION_KEY);
       db.setEncryptionKey(null);
