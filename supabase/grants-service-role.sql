@@ -3,7 +3,7 @@
 --   "permission denied for table users"
 --
 -- Also verify Dashboard → Project Settings → API → service_role key is set in
--- Edge Function secrets as SUPABASE_SERVICE_ROLE_KEY (NOT the anon key).
+-- Edge Function secrets as SERVICE_ROLE_KEY (NOT the anon key).
 
 BEGIN;
 
@@ -17,5 +17,6 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.tags TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.settings TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.access_requests TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.action_log TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.comments TO service_role;
 
 COMMIT;

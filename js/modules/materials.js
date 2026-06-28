@@ -110,6 +110,9 @@ function normalizeMaterial(material, categoryGuest = false) {
     publishedAt: material.publishedAt ?? null,
     deletedAt: material.deletedAt ?? null,
     deletedBy: material.deletedBy ?? null,
+    commentsAccess: ['all', 'authenticated', 'disabled'].includes(material.commentsAccess)
+      ? material.commentsAccess
+      : 'disabled',
   };
 
   return {

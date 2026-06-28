@@ -12,6 +12,7 @@ export const STORE_META = {
   settings: { table: 'settings', key: 'key' },
   accessRequests: { table: 'access_requests', key: 'id' },
   actionLog: { table: 'action_log', key: 'id' },
+  comments: { table: 'comments', key: 'id' },
 };
 
 /** @type {Record<string, Record<string, string>>} */
@@ -21,6 +22,9 @@ export const INDEX_COLUMNS = {
     categoryId: 'category_id',
     status: 'status',
     deletedAt: 'deleted_at',
+  },
+  comments: {
+    materialId: 'material_id',
   },
   categories: { parentId: 'parent_id' },
   tags: { name: 'name' },
@@ -35,6 +39,7 @@ export const TIMESTAMP_DEFAULTS = {
   categories: { created: true, updated: true },
   materials: { created: true, updated: true },
   tags: { created: true },
+  comments: { created: true },
   accessRequests: { created: true },
   actionLog: { timestamp: true },
 };

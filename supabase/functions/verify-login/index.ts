@@ -4,10 +4,10 @@
  *
  * Deploy: supabase functions deploy verify-login --no-verify-jwt
  *
- * Secrets (Supabase auto-injects SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY on deploy).
+ * Secrets: SUPABASE_URL (auto) + SERVICE_ROLE_KEY (manual — Supabase forbids SUPABASE_ prefix on custom secrets).
  * If login fails with "permission denied for table users":
  *   1. Dashboard → Settings → API → copy service_role key (NOT anon)
- *   2. supabase secrets set SUPABASE_SERVICE_ROLE_KEY=eyJ...service_role...
+ *   2. supabase secrets set SERVICE_ROLE_KEY=eyJ...service_role...
  *   3. Run supabase/grants-service-role.sql in SQL Editor
  *   4. Redeploy function
  *
@@ -50,11 +50,11 @@ function parseJwtRole(jwt: string): string | null {
  */
 function resolveServiceRoleConfig(): { url: string; serviceRoleKey: string } | { error: string; code: string } {
   const url = Deno.env.get('SUPABASE_URL')?.trim();
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim();
+  const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY')?.trim();
 
   if (!url || !serviceRoleKey) {
     return {
-      error: 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing in Edge Function secrets',
+      error: 'SUPABASE_URL or SERVICE_ROLE_KEY is missing in Edge Function secrets',
       code: 'config_missing',
     };
   }
@@ -63,8 +63,8 @@ function resolveServiceRoleConfig(): { url: string; serviceRoleKey: string } | {
   if (role !== 'service_role') {
     return {
       error: role
-        ? `SUPABASE_SERVICE_ROLE_KEY has role "${role}", expected "service_role" (do not use anon key)`
-        : 'SUPABASE_SERVICE_ROLE_KEY is not a valid JWT',
+        ? `SERVICE_ROLE_KEY has role "${role}", expected "service_role" (do not use anon key)`
+        : 'SERVICE_ROLE_KEY is not a valid JWT',
       code: 'wrong_api_key',
     };
   }

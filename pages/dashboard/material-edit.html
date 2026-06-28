@@ -120,6 +120,17 @@
     </div>
   </section>
 
+  <section id="comments-access-section" class="mb-8 rounded-xl border border-pulse-violet/20 bg-nebula-deep/30 p-5">
+    <h2 class="mb-4 text-xs font-semibold uppercase tracking-wider text-dim-text">Коментарі</h2>
+    <label for="mat-comments-access" class="mb-1 block text-sm text-dim-text">Хто може коментувати</label>
+    <select id="mat-comments-access"
+      class="w-full max-w-md rounded-lg border border-pulse-violet/30 bg-space-void px-4 py-2 text-sm outline-none focus:border-neural-glow">
+      <option value="disabled">Вимкнено</option>
+      <option value="all">Всі (включно з гостями)</option>
+      <option value="authenticated">Лише зареєстровані</option>
+    </select>
+  </section>
+
   <p id="mat-autosave" class="mb-4 text-xs text-dim-text"></p>
   <p id="mat-error" class="mb-4 hidden text-sm text-red-400"></p>
 

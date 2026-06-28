@@ -9,6 +9,7 @@ import {
   renderMaterialBody,
   setPageMeta,
 } from '../ui/public.js';
+import { mountCommentsSection } from '../ui/comments.js';
 
 /**
  * @returns {Promise<void>}
@@ -97,5 +98,10 @@ export default async function init(ctx) {
         ${editBtn}
       </footer>
     `;
+  }
+
+  const commentsSlot = document.getElementById('material-comments');
+  if (commentsSlot) {
+    await mountCommentsSection(material, commentsSlot);
   }
 }

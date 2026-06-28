@@ -339,6 +339,7 @@ function collectFormData() {
       allAuthenticated: /** @type {HTMLInputElement} */ (document.getElementById('vis-auth')).checked,
       specificUsers,
     },
+    commentsAccess: /** @type {HTMLSelectElement} */ (document.getElementById('mat-comments-access')).value,
   };
 }
 
@@ -368,6 +369,11 @@ function applyFormData(data) {
   [...visSelect.options].forEach((opt) => {
     opt.selected = selected.has(opt.value);
   });
+
+  const commentsAccess = ['all', 'authenticated', 'disabled'].includes(data.commentsAccess)
+    ? data.commentsAccess
+    : 'disabled';
+  /** @type {HTMLSelectElement} */ (document.getElementById('mat-comments-access')).value = commentsAccess;
 
   renderTags();
   renderImages();

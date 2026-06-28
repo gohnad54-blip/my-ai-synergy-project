@@ -49,6 +49,12 @@ export function hydrateMaterial(record) {
   if (!material.authorName && record.authorName) {
     material.authorName = record.authorName;
   }
+  if (!material.commentsAccess && record.commentsAccess) {
+    material.commentsAccess = record.commentsAccess;
+  }
+  if (!material.commentsAccess) {
+    material.commentsAccess = 'disabled';
+  }
 
   return material;
 }

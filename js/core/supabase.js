@@ -42,6 +42,10 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       if (token) {
         headers.set('x-app-session', token);
       }
+      const guestCode = sessionStorage.getItem('ai-synergy-guest-code');
+      if (guestCode) {
+        headers.set('x-guest-code', guestCode);
+      }
       return fetch(url, { ...options, headers });
     },
   },
