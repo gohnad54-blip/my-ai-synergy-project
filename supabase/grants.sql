@@ -16,7 +16,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.tags TO anon, authenticated
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.settings TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.access_requests TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.action_log TO anon, authenticated;
-GRANT SELECT, INSERT, DELETE ON TABLE public.comments TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.comments TO anon, authenticated;
 
 -- service_role (Edge Functions / server) — bypasses RLS but still needs table GRANT
 GRANT USAGE ON SCHEMA public TO service_role;

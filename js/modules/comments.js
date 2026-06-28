@@ -6,7 +6,7 @@ import { generateId } from '../core/crypto.js';
 import { getSession, isAdmin } from '../core/auth.js';
 import { getGuestCommentCode, getGuestDisplayName } from '../core/guest-comment.js';
 import { stripPlainText } from '../core/security.js';
-import { fromDbRow } from '../core/db-mapper.js';
+import { applyDefaultTimestamps, fromDbRow, toDbRow } from '../core/db-mapper.js';
 
 export const MAX_COMMENT_LENGTH = 1000;
 export const RATE_LIMIT = 10;
@@ -123,9 +123,17 @@ export async function addComment(materialId, body) {
         createdAt: Date.now(),
       };
 
-  await db.put('comments', record);
+  await db.init();
+  const normalized = applyDefaultTimestamps('comments', record);
+  const row = toDbRow('comments', normalized);
+  const { error } = await supabase.from('comments').insert(row);
+
+  if (error) {
+    throw new Error(`addComment: ${error.message}`);
+  }
+
   recordCommentSubmit();
-  return record;
+  return normalized;
 }
 
 /**
