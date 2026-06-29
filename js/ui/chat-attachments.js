@@ -1,5 +1,6 @@
 /** Chat message attachment rendering */
 
+import { escapeHtml } from '../core/security.js';
 import {
   fetchReactions,
   summarizeReactions,
@@ -175,8 +176,14 @@ function renderAttachmentBlock(msg, urls, t) {
  */
 export async function buildChatMessagesHtml(messages, mode, ctx) {
   const targetType = mode === 'group' ? 'group_message' : 'private_message';
-  const reactionRows = await fetchReactions(targetType, messages.map((m) => m.id));
-  const reactionMap = summarizeReactions(reactionRows);
+  /** @type {Map<string, { counts: Record<string, number>, mine: string | null, mineId: string | null }>} */
+  let reactionMap = new Map();
+  try {
+    const reactionRows = await fetchReactions(targetType, messages.map((m) => m.id));
+    reactionMap = summarizeReactions(reactionRows);
+  } catch {
+    /* reactions table missing or RLS — still render messages */
+  }
 
   const parts = await Promise.all(messages.map(async (msg) => {
     const mine = msg.senderId === ctx.sessionUserId;
