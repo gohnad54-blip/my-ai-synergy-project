@@ -26,6 +26,7 @@ import {
 } from '../../modules/chat-attachments.js';
 import { refreshChatBadges } from '../../ui/chat-badges.js';
 import { buildChatMessagesHtml, bindChatImageLightbox } from '../../ui/chat-attachments.js';
+import { bindReactions } from '../../ui/reactions.js';
 import { closeModal, confirmModal, showModal } from '../../ui/modal.js';
 import { showToast } from '../../ui/toast.js';
 
@@ -438,6 +439,7 @@ async function buildLayout(ctx) {
   const scrollEl = document.getElementById('chat-messages');
   if (scrollEl) {
     bindScrollStick(scrollEl);
+    bindReactions(scrollEl);
   }
 
   document.querySelectorAll('[data-chat-tab]').forEach((btn) => {

@@ -14,17 +14,22 @@ import {
   getCommentsForMaterial,
   isRateLimitOk,
 } from '../modules/comments.js';
+import { fetchReactions, summarizeReactions } from '../modules/reactions.js';
+import { bindReactions, renderReactionsBar } from './reactions.js';
 import { showToast } from './toast.js';
 
 /**
  * @param {object} comment
+ * @param {{ counts: Record<string, number>, mine: string | null }} summary
  * @returns {string}
  */
-function renderCommentItem(comment) {
+function renderCommentItem(comment, summary = { counts: {}, mine: null }) {
   const deleteBtn = canDeleteComment(comment)
     ? `<button type="button" data-comment-delete="${escapeHtml(comment.id)}"
         class="text-xs text-dim-text hover:text-red-400">${t('comments.delete')}</button>`
     : '';
+
+  const reactionsHtml = renderReactionsBar('comment', comment.id, summary);
 
   return `
     <li class="rounded-lg border border-pulse-violet/15 bg-nebula-deep/20 px-4 py-3" data-comment-id="${escapeHtml(comment.id)}">
@@ -33,6 +38,7 @@ function renderCommentItem(comment) {
         <time class="text-xs text-dim-text">${formatPublicDate(comment.createdAt)}</time>
       </div>
       <p class="mt-2 whitespace-pre-wrap break-words text-sm text-starfield-white">${escapeHtml(comment.body ?? '')}</p>
+      ${reactionsHtml}
       ${deleteBtn ? `<div class="mt-2">${deleteBtn}</div>` : ''}
     </li>
   `;
@@ -59,6 +65,14 @@ export async function mountCommentsSection(material, container) {
   } catch (error) {
     container.innerHTML = `<p class="text-sm text-red-400">${t('comments.loadError')}</p>`;
     return;
+  }
+
+  let reactionMap = new Map();
+  try {
+    const rows = await fetchReactions('comment', comments.map((c) => c.id));
+    reactionMap = summarizeReactions(rows);
+  } catch {
+    /* reactions optional — show comments without counts */
   }
 
   const guestHint = !session && canComment
@@ -93,7 +107,7 @@ export async function mountCommentsSection(material, container) {
       <h2 class="mb-4 font-display text-xl text-neural-glow">${t('comments.title')}</h2>
       <ul id="comments-list" class="space-y-3">
         ${comments.length
-    ? comments.map(renderCommentItem).join('')
+    ? comments.map((c) => renderCommentItem(c, reactionMap.get(c.id) ?? { counts: {}, mine: null })).join('')
     : `<li class="text-sm text-dim-text" id="comments-empty">${t('comments.empty')}</li>`}
       </ul>
       ${form}
@@ -101,6 +115,10 @@ export async function mountCommentsSection(material, container) {
   `;
 
   const list = document.getElementById('comments-list');
+  if (list) {
+    bindReactions(list);
+  }
+
   const formEl = document.getElementById('comment-form');
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('comment-input'));
   const charCount = document.getElementById('comment-char-count');
@@ -153,7 +171,7 @@ export async function mountCommentsSection(material, container) {
     try {
       const comment = await addComment(material.id, input.value);
       document.getElementById('comments-empty')?.remove();
-      list?.insertAdjacentHTML('beforeend', renderCommentItem(comment));
+      list?.insertAdjacentHTML('beforeend', renderCommentItem(comment, { counts: {}, mine: null }));
       const newItem = list?.lastElementChild;
       newItem?.querySelector('[data-comment-delete]')?.addEventListener('click', async () => {
         if (!confirm(t('comments.deleteConfirm'))) {

@@ -18,6 +18,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.access_requests TO anon, au
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.action_log TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.comments TO anon, authenticated;
 
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.reactions TO anon, authenticated;
+
 GRANT SELECT, INSERT, DELETE ON TABLE public.private_messages TO anon, authenticated;
 GRANT SELECT, INSERT, DELETE ON TABLE public.group_messages TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.group_read_cursors TO anon, authenticated;
@@ -33,6 +35,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.settings TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.access_requests TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.action_log TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.comments TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.reactions TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.private_messages TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.group_messages TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.group_read_cursors TO service_role;

@@ -1,6 +1,10 @@
 /** Chat message attachment rendering */
 
-import { escapeHtml } from '../core/security.js';
+import {
+  fetchReactions,
+  summarizeReactions,
+} from '../modules/reactions.js';
+import { renderReactionsBar } from './reactions.js';
 import { toVideoEmbedUrl } from './public.js';
 import {
   formatFileSize,
@@ -170,6 +174,10 @@ function renderAttachmentBlock(msg, urls, t) {
  * @returns {Promise<string>}
  */
 export async function buildChatMessagesHtml(messages, mode, ctx) {
+  const targetType = mode === 'group' ? 'group_message' : 'private_message';
+  const reactionRows = await fetchReactions(targetType, messages.map((m) => m.id));
+  const reactionMap = summarizeReactions(reactionRows);
+
   const parts = await Promise.all(messages.map(async (msg) => {
     const mine = msg.senderId === ctx.sessionUserId;
     const align = mine ? 'ml-auto bg-pulse-violet/30' : 'mr-auto bg-space-void/80';
@@ -191,12 +199,15 @@ export async function buildChatMessagesHtml(messages, mode, ctx) {
       : '';
 
     const attachmentHtml = renderAttachmentBlock(msg, { displayUrl, downloadUrl }, ctx.t);
+    const reactionSummary = reactionMap.get(msg.id) ?? { counts: {}, mine: null, mineId: null };
+    const reactionsHtml = renderReactionsBar(targetType, msg.id, reactionSummary);
 
     return `
       <div class="max-w-[85%] rounded-lg border border-pulse-violet/15 px-3 py-2 ${align}" data-msg-id="${escapeHtml(msg.id)}">
         ${!mine ? `<p class="mb-1 text-xs font-medium text-neural-glow">${escapeHtml(ctx.displayName(msg.senderId))}</p>` : ''}
         ${bodyHtml}
         ${attachmentHtml}
+        ${reactionsHtml}
         <p class="mt-1 text-right text-[10px] text-dim-text">${ctx.formatChatTime(msg.createdAt)}</p>
         ${deleteBtn}
       </div>
