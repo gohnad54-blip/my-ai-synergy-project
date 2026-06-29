@@ -14,6 +14,47 @@ const VIDEO_EXT = /\.(mp4|webm|mov)$/i;
 
 /**
  * @param {string} name
+ * @returns {'image' | 'video' | 'file' | null}
+ */
+export function inferTypeFromFilename(name) {
+  const n = String(name ?? '');
+  if (IMAGE_EXT.test(n)) {
+    return 'image';
+  }
+  if (VIDEO_EXT.test(n)) {
+    return 'video';
+  }
+  return null;
+}
+
+/**
+ * @param {object} msg
+ * @returns {'image' | 'video' | 'file' | 'video_link' | null}
+ */
+export function resolveDisplayAttachmentType(msg) {
+  const stored = msg.attachmentType;
+  if (stored === 'video_link') {
+    return 'video_link';
+  }
+  if (!msg.attachmentUrl) {
+    return null;
+  }
+
+  const name = msg.attachmentName ?? msg.attachmentUrl.split('/').pop() ?? '';
+  const inferred = inferTypeFromFilename(name);
+
+  if (stored === 'image' || stored === 'video' || stored === 'file') {
+    if (stored === 'file' && inferred) {
+      return inferred;
+    }
+    return stored;
+  }
+
+  return inferred ?? 'file';
+}
+
+/**
+ * @param {string} name
  * @returns {string}
  */
 export function safeStorageFilename(name) {
@@ -29,11 +70,15 @@ export function safeStorageFilename(name) {
 export function detectFileAttachmentType(file) {
   const mime = (file.type ?? '').toLowerCase();
   const name = file.name ?? '';
-  if (IMAGE_MIME.has(mime) || IMAGE_EXT.test(name)) {
+  const fromName = inferTypeFromFilename(name);
+  if (IMAGE_MIME.has(mime)) {
     return 'image';
   }
-  if (VIDEO_MIME.has(mime) || VIDEO_EXT.test(name)) {
+  if (VIDEO_MIME.has(mime)) {
     return 'video';
+  }
+  if (fromName) {
+    return fromName;
   }
   return 'file';
 }
@@ -113,8 +158,20 @@ export async function uploadChatFile(path, file) {
   }
 }
 
-/** @type {Map<string, { url: string, expires: number }>} */
+/** @type {Map<string, { url: string, expires: number, isBlob?: boolean }>} */
 const signedUrlCache = new Map();
+
+/**
+ * @param {string} storagePath
+ * @returns {Promise<string | null>}
+ */
+async function downloadAsBlobUrl(storagePath) {
+  const { data, error } = await supabase.storage.from(CHAT_BUCKET).download(storagePath);
+  if (error || !data) {
+    return null;
+  }
+  return URL.createObjectURL(data);
+}
 
 /**
  * @param {string | null | undefined} storagePath
@@ -130,20 +187,34 @@ export async function getAttachmentSignedUrl(storagePath) {
     return cached.url;
   }
 
+  if (cached?.isBlob) {
+    URL.revokeObjectURL(cached.url);
+    signedUrlCache.delete(storagePath);
+  }
+
   const { data, error } = await supabase.storage
     .from(CHAT_BUCKET)
     .createSignedUrl(storagePath, 3600);
 
-  if (error || !data?.signedUrl) {
-    return null;
+  if (!error && data?.signedUrl) {
+    signedUrlCache.set(storagePath, {
+      url: data.signedUrl,
+      expires: Date.now() + 3_500_000,
+    });
+    return data.signedUrl;
   }
 
-  signedUrlCache.set(storagePath, {
-    url: data.signedUrl,
-    expires: Date.now() + 3_500_000,
-  });
+  const blobUrl = await downloadAsBlobUrl(storagePath);
+  if (blobUrl) {
+    signedUrlCache.set(storagePath, {
+      url: blobUrl,
+      expires: Date.now() + 3_500_000,
+      isBlob: true,
+    });
+    return blobUrl;
+  }
 
-  return data.signedUrl;
+  return null;
 }
 
 /**
@@ -177,6 +248,8 @@ export default {
   CHAT_BUCKET,
   MAX_ATTACHMENT_BYTES,
   safeStorageFilename,
+  inferTypeFromFilename,
+  resolveDisplayAttachmentType,
   detectFileAttachmentType,
   validateChatFile,
   isValidVideoLink,

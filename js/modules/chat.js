@@ -10,6 +10,7 @@ import {
   buildStoragePath,
   detectFileAttachmentType,
   isValidVideoLink,
+  resolveDisplayAttachmentType,
   uploadChatFile,
   validateChatFile,
 } from './chat-attachments.js';
@@ -306,7 +307,8 @@ export function messagePreviewText(msg, t) {
   if (msg.body?.trim()) {
     return String(msg.body).slice(0, 60);
   }
-  switch (msg.attachmentType) {
+  const displayType = resolveDisplayAttachmentType(msg);
+  switch (displayType) {
     case 'image': return t('chat.previewImage');
     case 'video': return t('chat.previewVideo');
     case 'file': return t('chat.previewFile');

@@ -6,7 +6,82 @@ import {
   formatFileSize,
   getAttachmentSignedUrl,
   isStorageAttachment,
+  resolveDisplayAttachmentType,
 } from '../modules/chat-attachments.js';
+
+const MEDIA_MAX = '320px';
+
+/** @type {HTMLElement | null} */
+let lightboxRoot = null;
+
+/**
+ * @param {string} url
+ * @param {string} alt
+ */
+function openImageLightbox(url, alt) {
+  if (!lightboxRoot) {
+    lightboxRoot = document.createElement('div');
+    lightboxRoot.id = 'chat-image-lightbox';
+    lightboxRoot.className = 'fixed inset-0 z-[110] hidden items-center justify-center bg-black/92 p-4 backdrop-blur-sm';
+    lightboxRoot.innerHTML = `
+      <button type="button" data-lightbox-close
+        class="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-space-void/80 text-2xl text-white hover:bg-space-void"
+        aria-label="Close">×</button>
+      <img data-lightbox-img class="max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] object-contain" alt="">
+    `;
+    document.body.appendChild(lightboxRoot);
+
+    lightboxRoot.querySelector('[data-lightbox-close]')?.addEventListener('click', closeImageLightbox);
+    lightboxRoot.addEventListener('click', (e) => {
+      if (e.target === lightboxRoot) {
+        closeImageLightbox();
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeImageLightbox();
+      }
+    });
+  }
+
+  const img = lightboxRoot.querySelector('[data-lightbox-img]');
+  if (img instanceof HTMLImageElement) {
+    img.src = url;
+    img.alt = alt;
+  }
+
+  lightboxRoot.classList.remove('hidden');
+  lightboxRoot.classList.add('flex');
+  document.body.classList.add('overflow-hidden');
+}
+
+function closeImageLightbox() {
+  if (!lightboxRoot) {
+    return;
+  }
+  lightboxRoot.classList.add('hidden');
+  lightboxRoot.classList.remove('flex');
+  const img = lightboxRoot.querySelector('[data-lightbox-img]');
+  if (img instanceof HTMLImageElement) {
+    img.removeAttribute('src');
+  }
+  document.body.classList.remove('overflow-hidden');
+}
+
+/**
+ * @param {string} filename
+ * @returns {string}
+ */
+function videoMimeFromName(filename) {
+  const lower = filename.toLowerCase();
+  if (lower.endsWith('.webm')) {
+    return 'video/webm';
+  }
+  if (lower.endsWith('.mov')) {
+    return 'video/quicktime';
+  }
+  return 'video/mp4';
+}
 
 /**
  * @param {object} msg
@@ -15,7 +90,7 @@ import {
  * @returns {string}
  */
 function renderAttachmentBlock(msg, signedUrl, t) {
-  const type = msg.attachmentType;
+  const type = resolveDisplayAttachmentType(msg);
   if (!type) {
     return '';
   }
@@ -24,8 +99,8 @@ function renderAttachmentBlock(msg, signedUrl, t) {
     const embed = toVideoEmbedUrl(msg.attachmentUrl);
     if (embed) {
       return `
-        <div class="mt-2 overflow-hidden rounded-lg border border-pulse-violet/20">
-          <iframe src="${escapeHtml(embed)}" class="aspect-video w-full max-w-md" allowfullscreen loading="lazy"
+        <div class="mt-2 overflow-hidden rounded-lg border border-pulse-violet/20" style="max-width:${MEDIA_MAX}">
+          <iframe src="${escapeHtml(embed)}" class="aspect-video w-full" allowfullscreen loading="lazy"
             title="${escapeHtml(t('chat.videoLink'))}"></iframe>
         </div>`;
     }
@@ -38,18 +113,25 @@ function renderAttachmentBlock(msg, signedUrl, t) {
   }
 
   if (type === 'image') {
+    const alt = escapeHtml(msg.attachmentName ?? t('chat.previewImage'));
     return `
-      <button type="button" data-chat-image-full="${escapeHtml(signedUrl)}"
-        class="mt-2 block max-w-xs overflow-hidden rounded-lg border border-pulse-violet/20">
-        <img src="${escapeHtml(signedUrl)}" alt="${escapeHtml(msg.attachmentName ?? '')}"
-          class="max-h-48 w-full object-cover" loading="lazy" decoding="async">
+      <button type="button" data-chat-image-full="${escapeHtml(signedUrl)}" data-chat-image-alt="${alt}"
+        class="mt-2 block overflow-hidden rounded-lg border border-pulse-violet/20 bg-black/20"
+        style="max-width:${MEDIA_MAX};max-height:${MEDIA_MAX}">
+        <img src="${escapeHtml(signedUrl)}" alt="${alt}"
+          class="block max-h-[320px] max-w-[320px] w-auto h-auto object-contain"
+          loading="lazy" decoding="async">
       </button>`;
   }
 
   if (type === 'video') {
+    const name = msg.attachmentName ?? msg.attachmentUrl?.split('/').pop() ?? '';
+    const mime = videoMimeFromName(name);
     return `
-      <video controls class="mt-2 max-h-64 max-w-md rounded-lg border border-pulse-violet/20" preload="metadata">
-        <source src="${escapeHtml(signedUrl)}" type="video/mp4">
+      <video controls playsinline preload="metadata"
+        class="mt-2 block max-h-[320px] max-w-[320px] w-auto rounded-lg border border-pulse-violet/20 bg-black/40"
+        style="max-width:${MEDIA_MAX};max-height:${MEDIA_MAX}">
+        <source src="${escapeHtml(signedUrl)}" type="${escapeHtml(mime)}">
       </video>`;
   }
 
@@ -122,8 +204,9 @@ export function bindChatImageLightbox(container) {
   container.querySelectorAll('[data-chat-image-full]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const url = btn.getAttribute('data-chat-image-full');
+      const alt = btn.getAttribute('data-chat-image-alt') ?? '';
       if (url) {
-        window.open(url, '_blank', 'noopener,noreferrer');
+        openImageLightbox(url, alt);
       }
     });
   });
@@ -132,4 +215,5 @@ export function bindChatImageLightbox(container) {
 export default {
   buildChatMessagesHtml,
   bindChatImageLightbox,
+  closeImageLightbox,
 };
