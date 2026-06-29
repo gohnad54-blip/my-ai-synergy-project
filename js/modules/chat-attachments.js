@@ -253,39 +253,29 @@ async function downloadAsBlobUrl(storagePath) {
 }
 
 /**
+ * Blob URL for inline preview, lightbox, and <video> (uses authenticated download).
  * @param {string | null | undefined} storagePath
  * @returns {Promise<string | null>}
  */
-export async function getAttachmentSignedUrl(storagePath) {
+export async function getAttachmentDisplayUrl(storagePath) {
   if (!storagePath || storagePath.includes('://')) {
     return storagePath ?? null;
   }
 
-  const cached = signedUrlCache.get(storagePath);
+  const cacheKey = `display:${storagePath}`;
+  const cached = signedUrlCache.get(cacheKey);
   if (cached && cached.expires > Date.now()) {
     return cached.url;
   }
 
   if (cached?.isBlob) {
     URL.revokeObjectURL(cached.url);
-    signedUrlCache.delete(storagePath);
-  }
-
-  const { data, error } = await supabase.storage
-    .from(CHAT_BUCKET)
-    .createSignedUrl(storagePath, 3600);
-
-  if (!error && data?.signedUrl) {
-    signedUrlCache.set(storagePath, {
-      url: data.signedUrl,
-      expires: Date.now() + 3_500_000,
-    });
-    return data.signedUrl;
+    signedUrlCache.delete(cacheKey);
   }
 
   const blobUrl = await downloadAsBlobUrl(storagePath);
   if (blobUrl) {
-    signedUrlCache.set(storagePath, {
+    signedUrlCache.set(cacheKey, {
       url: blobUrl,
       expires: Date.now() + 3_500_000,
       isBlob: true,
@@ -294,6 +284,37 @@ export async function getAttachmentSignedUrl(storagePath) {
   }
 
   return null;
+}
+
+/**
+ * Signed URL for download / open in new tab.
+ * @param {string | null | undefined} storagePath
+ * @returns {Promise<string | null>}
+ */
+export async function getAttachmentSignedUrl(storagePath) {
+  if (!storagePath || storagePath.includes('://')) {
+    return storagePath ?? null;
+  }
+
+  const cacheKey = `signed:${storagePath}`;
+  const cached = signedUrlCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) {
+    return cached.url;
+  }
+
+  const { data, error } = await supabase.storage
+    .from(CHAT_BUCKET)
+    .createSignedUrl(storagePath, 3600);
+
+  if (!error && data?.signedUrl) {
+    signedUrlCache.set(cacheKey, {
+      url: data.signedUrl,
+      expires: Date.now() + 3_500_000,
+    });
+    return data.signedUrl;
+  }
+
+  return getAttachmentDisplayUrl(storagePath);
 }
 
 /**
@@ -335,6 +356,7 @@ export default {
   formatFileSize,
   buildStoragePath,
   uploadChatFile,
+  getAttachmentDisplayUrl,
   getAttachmentSignedUrl,
   isStorageAttachment,
   attachmentPreviewLabel,

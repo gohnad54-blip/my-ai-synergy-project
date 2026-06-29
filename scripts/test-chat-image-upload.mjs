@@ -126,7 +126,7 @@ try {
   await page.waitForFunction(() => {
     const messages = document.getElementById('chat-messages');
     const last = messages?.querySelector('[data-msg-id]:last-child');
-    return Boolean(last?.querySelector('img[src], a[download], [data-chat-image-full]'));
+    return Boolean(last?.querySelector('img[src], a[download], [data-chat-image-open]'));
   }, { timeout: 20000 });
 
   const domState = await page.evaluate(() => {
@@ -138,7 +138,7 @@ try {
       lastMsgHtml: lastMsg?.innerHTML?.slice(0, 1000) ?? '',
       hasImagePreview: Boolean(lastMsg?.querySelector('img[src]')),
       hasFileCard: Boolean(lastMsg?.querySelector('a[download]')),
-      hasDataChatImage: Boolean(lastMsg?.querySelector('[data-chat-image-full]')),
+      hasDataChatImage: Boolean(lastMsg?.querySelector('[data-chat-image-open]')),
     };
   });
 

@@ -58,7 +58,7 @@ try {
     if (type === 'image') {
       root.innerHTML = `
         <p>Resolved type: image (was attachmentType=file, name without extension)</p>
-        <button type="button" data-chat-image-full="${dataUri}" style="display:block;border:1px solid #7c3aed;border-radius:8px;overflow:hidden;max-width:320px;padding:0;background:#0003">
+        <button type="button" data-chat-image-open style="display:block;border:1px solid #7c3aed;border-radius:8px;overflow:hidden;max-width:320px;padding:0;background:#0003">
           <img src="${dataUri}" alt="test" style="display:block;max-height:320px;max-width:320px;object-fit:contain">
         </button>`;
     } else {
