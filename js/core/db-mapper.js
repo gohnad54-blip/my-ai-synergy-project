@@ -13,6 +13,9 @@ export const STORE_META = {
   accessRequests: { table: 'access_requests', key: 'id' },
   actionLog: { table: 'action_log', key: 'id' },
   comments: { table: 'comments', key: 'id' },
+  privateMessages: { table: 'private_messages', key: 'id' },
+  groupMessages: { table: 'group_messages', key: 'id' },
+  groupReadCursors: { table: 'group_read_cursors', key: 'user_id' },
 };
 
 /** @type {Record<string, Record<string, string>>} */
@@ -40,6 +43,8 @@ export const TIMESTAMP_DEFAULTS = {
   materials: { created: true, updated: true },
   tags: { created: true },
   comments: { created: true },
+  privateMessages: { created: true },
+  groupMessages: { created: true },
   accessRequests: { created: true },
   actionLog: { timestamp: true },
 };

@@ -23,6 +23,7 @@ const SIDEBAR_NAV = [
   { href: '/dashboard/categories', labelKey: 'dashboard.categories', icon: '🏷️', permission: 'taxonomy.create' },
   { href: '/dashboard/users', labelKey: 'dashboard.users', icon: '👥', permission: 'users.view' },
   { href: '/dashboard/requests', labelKey: 'dashboard.requests', icon: '📋', permission: 'requests.view' },
+  { href: '/dashboard/chat', labelKey: 'dashboard.chat', icon: '💭', always: true },
   { href: '/dashboard/roles', labelKey: 'dashboard.roles', icon: '🛡️', adminOnly: true },
   { href: '/dashboard/log', labelKey: 'dashboard.log', icon: '📜', adminOnly: true },
   { href: '/dashboard/comments', labelKey: 'dashboard.comments', icon: '💬', adminOnly: true },
@@ -66,6 +67,10 @@ export function isDashboardNavActive(href) {
     return false;
   }
 
+  if (navPath === '/dashboard/chat') {
+    return currentPath === '/dashboard/chat';
+  }
+
   if (url.search.includes('mine=1')) {
     return window.location.search.includes('mine=1');
   }
@@ -87,12 +92,17 @@ function renderNavLink(item) {
   const activeClass = active
     ? 'bg-pulse-violet/20 text-neural-glow border-l-2 border-neural-glow'
     : 'text-dim-text hover:bg-nebula-deep hover:text-starfield-white border-l-2 border-transparent';
+  const isChat = href === '/dashboard/chat';
+  const badge = isChat
+    ? '<span data-nav-chat-badge class="ml-auto hidden min-h-[1.25rem] min-w-[1.25rem] rounded-full bg-pulse-violet px-1.5 text-center text-xs font-semibold leading-5 text-white"></span>'
+    : '';
 
   return `
     <a href="${href}" data-dashboard-nav="${href}"
       class="flex items-center gap-3 rounded-r-lg px-4 py-2.5 text-sm transition ${activeClass}">
       ${item.icon ? `<span class="text-base" aria-hidden="true">${item.icon}</span>` : ''}
-      <span data-i18n="${item.labelKey}">${t(item.labelKey)}</span>
+      <span class="min-w-0 flex-1 truncate" data-i18n="${item.labelKey}">${t(item.labelKey)}</span>
+      ${badge}
     </a>
   `;
 }
@@ -214,7 +224,14 @@ export function wrapDashboardPage(pageHtml) {
             </svg>
           </button>
           <span class="font-display text-sm text-neural-glow">AI Synergy</span>
-          <span id="dashboard-lang-switcher-slot-mobile" class="ml-auto"></span>
+          <a href="/dashboard/chat" data-dashboard-nav="/dashboard/chat"
+            class="relative ml-auto rounded-lg border border-pulse-violet/30 p-2 text-neural-glow hover:border-neural-glow"
+            aria-label="${t('dashboard.chat')}">
+            <span aria-hidden="true">💭</span>
+            <span data-nav-chat-badge
+              class="absolute -right-1 -top-1 hidden min-h-[1rem] min-w-[1rem] rounded-full bg-pulse-violet px-1 text-center text-[10px] font-semibold leading-4 text-white"></span>
+          </a>
+          <span id="dashboard-lang-switcher-slot-mobile"></span>
         </header>
 
         <main id="dashboard-outlet" class="flex-1 overflow-x-hidden p-4 md:p-6 lg:p-8">
@@ -300,6 +317,7 @@ function getDashboardTitle(path) {
     '/dashboard/user-create': t('dashboard.newUser'),
     '/dashboard/roles': t('dashboard.roles'),
     '/dashboard/requests': t('dashboard.requests'),
+    '/dashboard/chat': t('dashboard.chat'),
     '/dashboard/log': t('dashboard.log'),
     '/dashboard/comments': t('dashboard.comments'),
     '/dashboard/settings': t('dashboard.settings'),

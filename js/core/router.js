@@ -23,6 +23,7 @@ import {
   t,
 } from './i18n.js';
 import { preloadSecurityAssets, repairStaleSession } from './security.js';
+import { startChatBadgePolling, stopChatBadgePolling } from '../ui/chat-badges.js';
 
 /** @typedef {{ page: string, auth?: boolean, permission?: string | null, adminOnly?: boolean, setupOnly?: boolean }} RouteConfig */
 
@@ -36,6 +37,7 @@ const routeList = [
   { pattern: '/dashboard/roles', page: 'dashboard/roles', auth: true, adminOnly: true },
   { pattern: '/dashboard/categories', page: 'dashboard/categories', auth: true, permission: 'taxonomy.create' },
   { pattern: '/dashboard/requests', page: 'dashboard/requests', auth: true, permission: 'requests.view' },
+  { pattern: '/dashboard/chat', page: 'dashboard/chat', auth: true, permission: null },
   { pattern: '/dashboard/trash', page: 'dashboard/trash', auth: true, permission: 'content.delete.soft' },
   { pattern: '/dashboard/log', page: 'dashboard/log', auth: true, adminOnly: true },
   { pattern: '/dashboard/comments', page: 'dashboard/comments', auth: true, adminOnly: true },
@@ -375,6 +377,7 @@ async function renderRoute(path) {
           route: config,
           navigate,
           getSession,
+          signal,
         });
       }
     } catch (importError) {
@@ -389,6 +392,9 @@ async function renderRoute(path) {
 
     if (isDashboard && !signal.aborted) {
       initDashboardShell(path);
+      startChatBadgePolling();
+    } else if (!signal.aborted) {
+      stopChatBadgePolling();
     }
 
     bindSpaLinksInApp();
