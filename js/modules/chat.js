@@ -6,6 +6,13 @@ import { generateId } from '../core/crypto.js';
 import { getSession, isAdmin } from '../core/auth.js';
 import { stripPlainText } from '../core/security.js';
 import { applyDefaultTimestamps, fromDbRow, toDbRow } from '../core/db-mapper.js';
+import {
+  buildStoragePath,
+  detectFileAttachmentType,
+  isValidVideoLink,
+  uploadChatFile,
+  validateChatFile,
+} from './chat-attachments.js';
 
 export const MAX_CHAT_BODY = 2000;
 export const CHAT_POLL_MS = 12_000;
@@ -13,7 +20,74 @@ export const BADGE_POLL_MS = 15_000;
 
 /**
  * @typedef {{ private: number, group: number }} ChatUnreadCounts
+ * @typedef {{ file?: File | null, videoLink?: string | null }} ChatSendAttachment
  */
+
+/**
+ * @param {string} body
+ * @param {ChatSendAttachment} [attachment]
+ */
+function validateMessagePayload(body, attachment = {}) {
+  const text = stripPlainText(body ?? '');
+  const hasText = text.length > 0;
+  const hasFile = attachment.file instanceof File;
+  const hasLink = typeof attachment.videoLink === 'string' && attachment.videoLink.trim().length > 0;
+
+  if (!hasText && !hasFile && !hasLink) {
+    throw new Error('CHAT_EMPTY');
+  }
+  if (text.length > MAX_CHAT_BODY) {
+    throw new Error('CHAT_TOO_LONG');
+  }
+  if (hasFile) {
+    validateChatFile(attachment.file);
+  }
+  if (hasLink && !isValidVideoLink(attachment.videoLink ?? '')) {
+    throw new Error('CHAT_INVALID_VIDEO_LINK');
+  }
+  if (hasFile && hasLink) {
+    throw new Error('CHAT_ONE_ATTACHMENT');
+  }
+
+  return { text, hasFile, hasLink };
+}
+
+/**
+ * @param {'private' | 'group'} channel
+ * @param {string} messageId
+ * @param {string | null} threadUserId
+ * @param {ChatSendAttachment} attachment
+ * @returns {Promise<{ attachmentUrl: string | null, attachmentType: string | null, attachmentName: string | null, attachmentSize: number | null }>}
+ */
+async function resolveAttachmentFields(channel, messageId, threadUserId, attachment) {
+  if (attachment.file instanceof File) {
+    const file = attachment.file;
+    const path = buildStoragePath(channel, messageId, threadUserId ?? '', file);
+    await uploadChatFile(path, file);
+    return {
+      attachmentUrl: path,
+      attachmentType: detectFileAttachmentType(file),
+      attachmentName: file.name,
+      attachmentSize: file.size,
+    };
+  }
+
+  if (attachment.videoLink?.trim()) {
+    return {
+      attachmentUrl: attachment.videoLink.trim(),
+      attachmentType: 'video_link',
+      attachmentName: null,
+      attachmentSize: null,
+    };
+  }
+
+  return {
+    attachmentUrl: null,
+    attachmentType: null,
+    attachmentName: null,
+    attachmentSize: null,
+  };
+}
 
 /**
  * @returns {Promise<ChatUnreadCounts>}
@@ -69,29 +143,31 @@ export async function getAllPrivateMessages() {
 /**
  * @param {string} threadUserId
  * @param {string} body
+ * @param {ChatSendAttachment} [attachment]
  * @returns {Promise<object>}
  */
-export async function sendPrivateMessage(threadUserId, body) {
-  const text = stripPlainText(body);
-  if (!text) {
-    throw new Error('CHAT_EMPTY');
-  }
-  if (text.length > MAX_CHAT_BODY) {
-    throw new Error('CHAT_TOO_LONG');
-  }
+export async function sendPrivateMessage(threadUserId, body, attachment = {}) {
+  const { text } = validateMessagePayload(body, attachment);
 
   const session = getSession();
   if (!session?.userId) {
     throw new Error('Not authenticated');
   }
 
+  const id = generateId('pmsg');
+  const att = await resolveAttachmentFields('private', id, threadUserId, attachment);
+
   const record = applyDefaultTimestamps('privateMessages', {
-    id: generateId('pmsg'),
+    id,
     threadUserId,
     senderId: session.userId,
     body: text,
     createdAt: Date.now(),
     readAt: null,
+    attachmentUrl: att.attachmentUrl,
+    attachmentType: att.attachmentType,
+    attachmentName: att.attachmentName,
+    attachmentSize: att.attachmentSize,
   });
 
   const row = toDbRow('privateMessages', record);
@@ -136,27 +212,29 @@ export async function getGroupMessages() {
 
 /**
  * @param {string} body
+ * @param {ChatSendAttachment} [attachment]
  * @returns {Promise<object>}
  */
-export async function sendGroupMessage(body) {
-  const text = stripPlainText(body);
-  if (!text) {
-    throw new Error('CHAT_EMPTY');
-  }
-  if (text.length > MAX_CHAT_BODY) {
-    throw new Error('CHAT_TOO_LONG');
-  }
+export async function sendGroupMessage(body, attachment = {}) {
+  const { text } = validateMessagePayload(body, attachment);
 
   const session = getSession();
   if (!session?.userId) {
     throw new Error('Not authenticated');
   }
 
+  const id = generateId('gmsg');
+  const att = await resolveAttachmentFields('group', id, null, attachment);
+
   const record = applyDefaultTimestamps('groupMessages', {
-    id: generateId('gmsg'),
+    id,
     senderId: session.userId,
     body: text,
     createdAt: Date.now(),
+    attachmentUrl: att.attachmentUrl,
+    attachmentType: att.attachmentType,
+    attachmentName: att.attachmentName,
+    attachmentSize: att.attachmentSize,
   });
 
   const row = toDbRow('groupMessages', record);
@@ -217,11 +295,33 @@ export function countPrivateUnread(messages, threadUserId) {
 }
 
 /**
+ * @param {object | null | undefined} msg
+ * @param {(key: string) => string} t
+ * @returns {string}
+ */
+export function messagePreviewText(msg, t) {
+  if (!msg) {
+    return '';
+  }
+  if (msg.body?.trim()) {
+    return String(msg.body).slice(0, 60);
+  }
+  switch (msg.attachmentType) {
+    case 'image': return t('chat.previewImage');
+    case 'video': return t('chat.previewVideo');
+    case 'file': return t('chat.previewFile');
+    case 'video_link': return t('chat.previewVideoLink');
+    default: return t('chat.noMessagesYet');
+  }
+}
+
+/**
  * @param {object[]} allMessages
  * @param {object[]} users
+ * @param {(key: string) => string} [t]
  * @returns {Array<{ user: object, lastMessage: object | null, unread: number }>}
  */
-export function buildAdminThreadList(allMessages, users) {
+export function buildAdminThreadList(allMessages, users, t = (k) => k) {
   const participants = users
     .filter((u) => u.status === 'active' && u.role !== 'admin')
     .sort((a, b) => (a.displayName ?? a.login ?? '').localeCompare(b.displayName ?? b.login ?? '', 'uk'));
@@ -262,5 +362,6 @@ export default {
   deleteGroupMessage,
   canDeleteGroupMessage,
   countPrivateUnread,
+  messagePreviewText,
   buildAdminThreadList,
 };

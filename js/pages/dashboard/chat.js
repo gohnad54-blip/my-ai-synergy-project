@@ -15,11 +15,18 @@ import {
   getPrivateMessages,
   markGroupRead,
   markPrivateRead,
+  messagePreviewText,
   sendGroupMessage,
   sendPrivateMessage,
 } from '../../modules/chat.js';
+import {
+  MAX_ATTACHMENT_BYTES,
+  formatFileSize,
+  isValidVideoLink,
+} from '../../modules/chat-attachments.js';
 import { refreshChatBadges } from '../../ui/chat-badges.js';
-import { confirmModal } from '../../ui/modal.js';
+import { buildChatMessagesHtml, bindChatImageLightbox } from '../../ui/chat-attachments.js';
+import { closeModal, confirmModal, showModal } from '../../ui/modal.js';
 import { showToast } from '../../ui/toast.js';
 
 /** @type {number | null} */
@@ -32,6 +39,10 @@ let activeThreadUserId = null;
 let userMap = new Map();
 /** @type {boolean} */
 let stickToBottom = true;
+/** @type {File | null} */
+let pendingFile = null;
+/** @type {string | null} */
+let pendingVideoLink = null;
 
 /**
  * @param {number | null | undefined} ts
@@ -83,44 +94,75 @@ function bindScrollStick(scrollEl) {
   });
 }
 
-/**
- * @param {object[]} messages
- * @param {string} mode
- * @returns {string}
- */
-function renderMessageBubbles(messages, mode) {
-  const session = getSession();
-  return messages.map((msg) => {
-    const mine = msg.senderId === session?.userId;
-    const align = mine ? 'ml-auto bg-pulse-violet/30' : 'mr-auto bg-space-void/80';
-    const deleteBtn = mode === 'group' && canDeleteGroupMessage(msg)
-      ? `<button type="button" data-delete-group-msg="${escapeHtml(msg.id)}"
-          class="mt-1 text-xs text-dim-text hover:text-red-400">${t('chat.deleteMessage')}</button>`
-      : '';
+function clearPendingAttachment() {
+  pendingFile = null;
+  pendingVideoLink = null;
+  const pending = document.getElementById('chat-pending-attachment');
+  if (pending) {
+    pending.classList.add('hidden');
+    pending.innerHTML = '';
+  }
+}
 
-    return `
-      <div class="max-w-[85%] rounded-lg border border-pulse-violet/15 px-3 py-2 ${align}" data-msg-id="${escapeHtml(msg.id)}">
-        ${!mine ? `<p class="mb-1 text-xs font-medium text-neural-glow">${escapeHtml(displayName(msg.senderId))}</p>` : ''}
-        <p class="whitespace-pre-wrap break-words text-sm text-starfield-white">${escapeHtml(msg.body ?? '')}</p>
-        <p class="mt-1 text-right text-[10px] text-dim-text">${formatChatTime(msg.createdAt)}</p>
-        ${deleteBtn}
-      </div>
-    `;
-  }).join('');
+function renderPendingAttachment() {
+  const pending = document.getElementById('chat-pending-attachment');
+  if (!pending) {
+    return;
+  }
+
+  if (!pendingFile && !pendingVideoLink) {
+    pending.classList.add('hidden');
+    pending.innerHTML = '';
+    return;
+  }
+
+  const label = pendingFile
+    ? `📎 ${escapeHtml(pendingFile.name)} (${escapeHtml(formatFileSize(pendingFile.size))})`
+    : `🔗 ${escapeHtml(pendingVideoLink ?? '')}`;
+
+  pending.classList.remove('hidden');
+  pending.innerHTML = `
+    <div class="flex items-center justify-between gap-2 rounded-lg border border-pulse-violet/25 bg-space-void/60 px-3 py-2 text-sm">
+      <span class="min-w-0 truncate text-dim-text">${label}</span>
+      <button type="button" id="chat-pending-clear" class="shrink-0 text-xs text-red-400 hover:text-red-300">×</button>
+    </div>
+  `;
+
+  document.getElementById('chat-pending-clear')?.addEventListener('click', clearPendingAttachment);
 }
 
 /**
- * @param {string} html
+ * @param {object[]} messages
+ * @param {'private' | 'group'} mode
+ * @returns {Promise<string>}
  */
-function renderComposer(html) {
+async function renderMessageBubbles(messages, mode) {
+  return buildChatMessagesHtml(messages, mode, {
+    t,
+    formatChatTime,
+    displayName,
+    canDeleteGroupMessage,
+    sessionUserId: getSession()?.userId,
+  });
+}
+
+function renderComposer() {
   return `
-    ${html}
-    <form id="chat-compose-form" class="flex shrink-0 gap-2 border-t border-pulse-violet/20 p-3">
+    <div id="chat-pending-attachment" class="hidden shrink-0 px-3 pt-2"></div>
+    <form id="chat-compose-form" class="flex shrink-0 items-end gap-2 border-t border-pulse-violet/20 p-3">
+      <div class="flex shrink-0 flex-col gap-1">
+        <button type="button" id="chat-attach-file" title="${escapeHtml(t('chat.attachFile'))}"
+          class="rounded-lg border border-pulse-violet/30 px-2.5 py-2 text-base hover:border-neural-glow">📎</button>
+        <button type="button" id="chat-attach-link" title="${escapeHtml(t('chat.attachVideoLink'))}"
+          class="rounded-lg border border-pulse-violet/30 px-2.5 py-2 text-base hover:border-neural-glow">🔗</button>
+      </div>
+      <input type="file" id="chat-file-input" class="hidden"
+        accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt">
       <textarea id="chat-compose-input" rows="2" maxlength="${MAX_CHAT_BODY}"
         placeholder="${escapeHtml(t('chat.placeholder'))}"
         class="min-h-[2.5rem] flex-1 resize-none rounded-lg border border-pulse-violet/30 bg-space-void px-3 py-2 text-sm outline-none focus:border-neural-glow"></textarea>
       <button type="submit"
-        class="self-end rounded-lg bg-pulse-violet px-4 py-2 text-sm font-medium hover:shadow-[0_0_12px_rgba(124,58,237,0.35)]">
+        class="rounded-lg bg-pulse-violet px-4 py-2 text-sm font-medium hover:shadow-[0_0_12px_rgba(124,58,237,0.35)]">
         ${t('chat.send')}
       </button>
     </form>
@@ -139,8 +181,8 @@ function renderThreadList(threads) {
 
   return threads.map(({ user, lastMessage, unread }) => {
     const active = activeThreadUserId === user.id;
-    const preview = lastMessage?.body
-      ? escapeHtml(String(lastMessage.body).slice(0, 60))
+    const preview = lastMessage
+      ? escapeHtml(messagePreviewText(lastMessage, t))
       : escapeHtml(t('chat.noMessagesYet'));
     const badge = unread > 0
       ? `<span class="rounded-full bg-pulse-violet px-1.5 py-0.5 text-xs font-semibold text-white">${unread > 99 ? '99+' : unread}</span>`
@@ -167,7 +209,7 @@ async function loadUsers() {
   userMap = new Map(users.map((u) => [u.id, u]));
 }
 
-function parseInitialState(ctx) {
+function parseInitialState() {
   const params = new URLSearchParams(window.location.search);
   activeTab = params.get('tab') === 'group' ? 'group' : 'private';
   const userParam = params.get('user');
@@ -176,6 +218,24 @@ function parseInitialState(ctx) {
   } else if (!isAdmin()) {
     activeThreadUserId = getSession()?.userId ?? null;
   }
+}
+
+function bindGroupDeleteHandlers(messagesEl) {
+  messagesEl.querySelectorAll('[data-delete-group-msg]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-delete-group-msg');
+      if (!id || !await confirmModal(t('chat.deleteConfirm'))) {
+        return;
+      }
+      try {
+        await deleteGroupMessage(id);
+        await renderGroupPane();
+        showToast(t('chat.messageDeleted'), 'info');
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : t('chat.deleteError'), 'error');
+      }
+    });
+  });
 }
 
 /**
@@ -188,11 +248,10 @@ async function renderPrivatePane(ctx) {
   }
 
   const threadId = isAdmin() ? activeThreadUserId : session.userId;
+  const messagesEl = document.getElementById('chat-messages');
   if (!threadId) {
-    document.getElementById('chat-messages')?.replaceChildren();
-    const empty = document.getElementById('chat-messages');
-    if (empty) {
-      empty.innerHTML = `<p class="p-4 text-sm text-dim-text">${escapeHtml(t('chat.selectThread'))}</p>`;
+    if (messagesEl) {
+      messagesEl.innerHTML = `<p class="p-4 text-sm text-dim-text">${escapeHtml(t('chat.selectThread'))}</p>`;
     }
     return;
   }
@@ -201,24 +260,20 @@ async function renderPrivatePane(ctx) {
   await markPrivateRead(threadId);
   void refreshChatBadges();
 
-  const messagesEl = document.getElementById('chat-messages');
+  const titleEl = document.getElementById('chat-pane-title');
+  if (titleEl) {
+    titleEl.textContent = isAdmin() ? displayName(threadId) : t('chat.adminThread');
+  }
+
   if (!messagesEl) {
     return;
   }
 
-  const title = isAdmin()
-    ? displayName(threadId)
-    : t('chat.adminThread');
-
-  const titleEl = document.getElementById('chat-pane-title');
-  if (titleEl) {
-    titleEl.textContent = title;
-  }
-
   messagesEl.innerHTML = messages.length
-    ? renderMessageBubbles(messages, 'private')
+    ? await renderMessageBubbles(messages, 'private')
     : `<p class="text-sm text-dim-text">${escapeHtml(t('chat.noMessagesYet'))}</p>`;
 
+  bindChatImageLightbox(messagesEl);
   scrollMessagesToBottom(messagesEl);
 }
 
@@ -237,25 +292,11 @@ async function renderGroupPane() {
   }
 
   messagesEl.innerHTML = messages.length
-    ? renderMessageBubbles(messages, 'group')
+    ? await renderMessageBubbles(messages, 'group')
     : `<p class="text-sm text-dim-text">${escapeHtml(t('chat.noMessagesYet'))}</p>`;
 
-  messagesEl.querySelectorAll('[data-delete-group-msg]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-delete-group-msg');
-      if (!id || !await confirmModal(t('chat.deleteConfirm'))) {
-        return;
-      }
-      try {
-        await deleteGroupMessage(id);
-        await renderGroupPane();
-        showToast(t('chat.messageDeleted'), 'info');
-      } catch (error) {
-        showToast(error instanceof Error ? error.message : t('chat.deleteError'), 'error');
-      }
-    });
-  });
-
+  bindChatImageLightbox(messagesEl);
+  bindGroupDeleteHandlers(messagesEl);
   scrollMessagesToBottom(messagesEl);
 }
 
@@ -267,7 +308,7 @@ async function renderThreadSidebar() {
 
   const allMessages = await getAllPrivateMessages();
   const users = [...userMap.values()];
-  const threads = buildAdminThreadList(allMessages, users);
+  const threads = buildAdminThreadList(allMessages, users, t);
 
   if (!activeThreadUserId && threads.length > 0) {
     activeThreadUserId = threads[0].user.id;
@@ -297,6 +338,60 @@ async function refreshActivePane(ctx) {
   }
 }
 
+function openVideoLinkModal() {
+  showModal({
+    title: t('chat.attachVideoLink'),
+    bodyHtml: `
+      <label class="block text-sm">
+        <span class="mb-1 block text-dim-text">${escapeHtml(t('chat.videoLinkLabel'))}</span>
+        <input type="url" id="chat-video-link-input" placeholder="https://youtube.com/…"
+          class="w-full rounded-lg border border-pulse-violet/30 bg-space-void px-3 py-2 text-sm">
+      </label>
+      <p id="chat-video-link-error" class="mt-2 hidden text-sm text-red-400"></p>
+    `,
+    buttons: [
+      { label: t('actions.cancel'), onClick: closeModal },
+      {
+        label: t('chat.attach'),
+        primary: true,
+        onClick: () => {
+          const input = document.getElementById('chat-video-link-input');
+          const errorEl = document.getElementById('chat-video-link-error');
+          const url = input instanceof HTMLInputElement ? input.value.trim() : '';
+          if (errorEl) {
+            errorEl.classList.add('hidden');
+          }
+          if (!isValidVideoLink(url)) {
+            if (errorEl) {
+              errorEl.textContent = t('chat.invalidVideoLink');
+              errorEl.classList.remove('hidden');
+            }
+            return;
+          }
+          pendingFile = null;
+          pendingVideoLink = url;
+          renderPendingAttachment();
+          closeModal();
+        },
+      },
+    ],
+  });
+}
+
+/**
+ * @param {Error} error
+ * @returns {string}
+ */
+function mapSendError(error) {
+  const code = error instanceof Error ? error.message : '';
+  if (code === 'CHAT_EMPTY') return t('chat.emptyBody');
+  if (code === 'CHAT_TOO_LONG') return t('chat.tooLong');
+  if (code === 'CHAT_FILE_TOO_LARGE') return t('chat.fileTooLarge');
+  if (code === 'CHAT_INVALID_VIDEO_LINK') return t('chat.invalidVideoLink');
+  if (code === 'CHAT_ONE_ATTACHMENT') return t('chat.oneAttachment');
+  return error instanceof Error ? error.message : t('chat.sendError');
+}
+
 /**
  * @param {{ navigate: (path: string, replace?: boolean) => Promise<void> }} ctx
  */
@@ -305,6 +400,8 @@ async function buildLayout(ctx) {
   if (!root) {
     return;
   }
+
+  clearPendingAttachment();
 
   const adminList = isAdmin()
     ? `<aside id="chat-thread-list" class="flex w-full shrink-0 flex-col overflow-y-auto border-b border-pulse-violet/20 md:w-64 md:border-b-0 md:border-r"></aside>`
@@ -330,7 +427,7 @@ async function buildLayout(ctx) {
           <h2 id="chat-pane-title" class="text-sm font-medium text-neural-glow"></h2>
         </div>
         <div id="chat-messages" class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-4"></div>
-        ${renderComposer('')}
+        ${renderComposer()}
       </div>
     </div>
   `;
@@ -347,6 +444,7 @@ async function buildLayout(ctx) {
     btn.addEventListener('click', async () => {
       const tab = btn.getAttribute('data-chat-tab');
       activeTab = tab === 'group' ? 'group' : 'private';
+      clearPendingAttachment();
       const url = activeTab === 'group'
         ? '/dashboard/chat?tab=group'
         : `/dashboard/chat?tab=private${activeThreadUserId && isAdmin() ? `&user=${encodeURIComponent(activeThreadUserId)}` : ''}`;
@@ -355,6 +453,28 @@ async function buildLayout(ctx) {
       stickToBottom = true;
       await refreshActivePane(ctx);
     });
+  });
+
+  document.getElementById('chat-attach-file')?.addEventListener('click', () => {
+    document.getElementById('chat-file-input')?.click();
+  });
+
+  document.getElementById('chat-attach-link')?.addEventListener('click', openVideoLinkModal);
+
+  document.getElementById('chat-file-input')?.addEventListener('change', (e) => {
+    const input = /** @type {HTMLInputElement} */ (e.target);
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) {
+      return;
+    }
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      showToast(t('chat.fileTooLarge'), 'error');
+      return;
+    }
+    pendingVideoLink = null;
+    pendingFile = file;
+    renderPendingAttachment();
   });
 
   document.getElementById('chat-compose-form')?.addEventListener('submit', async (e) => {
@@ -368,30 +488,30 @@ async function buildLayout(ctx) {
       errorEl.textContent = '';
     }
 
+    const attachment = {
+      file: pendingFile,
+      videoLink: pendingVideoLink,
+    };
+
     try {
       if (activeTab === 'group') {
-        await sendGroupMessage(text);
+        await sendGroupMessage(text, attachment);
       } else {
         const threadId = isAdmin() ? activeThreadUserId : getSession()?.userId;
         if (!threadId) {
           throw new Error(t('chat.selectThread'));
         }
-        await sendPrivateMessage(threadId, text);
+        await sendPrivateMessage(threadId, text, attachment);
       }
       if (input instanceof HTMLTextAreaElement) {
         input.value = '';
       }
+      clearPendingAttachment();
       stickToBottom = true;
       await refreshActivePane(ctx);
     } catch (error) {
-      const code = error instanceof Error ? error.message : '';
-      const message = code === 'CHAT_EMPTY'
-        ? t('chat.emptyBody')
-        : code === 'CHAT_TOO_LONG'
-          ? t('chat.tooLong')
-          : (error instanceof Error ? error.message : t('chat.sendError'));
       if (errorEl) {
-        errorEl.textContent = message;
+        errorEl.textContent = mapSendError(error instanceof Error ? error : new Error(String(error)));
         errorEl.classList.remove('hidden');
       }
     }
@@ -428,7 +548,7 @@ function stopPolling() {
  * @param {{ navigate: Function, path: string, signal?: AbortSignal }} ctx
  */
 export default async function init(ctx) {
-  parseInitialState(ctx);
+  parseInitialState();
   await loadUsers();
 
   if (!isAdmin() && activeTab === 'private') {
