@@ -12,6 +12,32 @@ const VIDEO_MIME = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
 const IMAGE_EXT = /\.(jpe?g|png|webp|gif)$/i;
 const VIDEO_EXT = /\.(mp4|webm|mov)$/i;
 
+const MIME_EXT = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/gif': '.gif',
+  'video/mp4': '.mp4',
+  'video/webm': '.webm',
+  'video/quicktime': '.mov',
+};
+
+/**
+ * @param {object} msg
+ * @returns {{
+ *   attachmentType: string | null | undefined,
+ *   attachmentUrl: string | null | undefined,
+ *   attachmentName: string | null | undefined,
+ * }}
+ */
+export function normalizeAttachmentFields(msg) {
+  return {
+    attachmentType: msg.attachmentType ?? msg.attachment_type,
+    attachmentUrl: msg.attachmentUrl ?? msg.attachment_url,
+    attachmentName: msg.attachmentName ?? msg.attachment_name,
+  };
+}
+
 /**
  * @param {string} name
  * @returns {'image' | 'video' | 'file' | null}
@@ -32,16 +58,18 @@ export function inferTypeFromFilename(name) {
  * @returns {'image' | 'video' | 'file' | 'video_link' | null}
  */
 export function resolveDisplayAttachmentType(msg) {
-  const stored = msg.attachmentType;
+  const { attachmentType: stored, attachmentUrl, attachmentName } = normalizeAttachmentFields(msg);
+
   if (stored === 'video_link') {
     return 'video_link';
   }
-  if (!msg.attachmentUrl) {
+  if (!attachmentUrl) {
     return null;
   }
 
-  const name = msg.attachmentName ?? msg.attachmentUrl.split('/').pop() ?? '';
-  const inferred = inferTypeFromFilename(name);
+  const pathName = String(attachmentUrl).split('/').pop() ?? '';
+  const inferred = inferTypeFromFilename(attachmentName)
+    ?? inferTypeFromFilename(pathName);
 
   if (stored === 'image' || stored === 'video' || stored === 'file') {
     if (stored === 'file' && inferred) {
@@ -55,19 +83,66 @@ export function resolveDisplayAttachmentType(msg) {
 
 /**
  * @param {string} name
+ * @param {string} [mime]
  * @returns {string}
  */
-export function safeStorageFilename(name) {
+export function safeStorageFilename(name, mime = '') {
   const base = String(name ?? 'file').split(/[/\\]/).pop() ?? 'file';
-  const cleaned = base.replace(/[^\w.\-()+\u0400-\u04FF]/g, '_').replace(/_+/g, '_');
+  let cleaned = base.replace(/[^\w.\-()+\u0400-\u04FF]/g, '_').replace(/_+/g, '_');
+  const lowerMime = (mime ?? '').toLowerCase();
+  if (!inferTypeFromFilename(cleaned) && MIME_EXT[lowerMime]) {
+    cleaned += MIME_EXT[lowerMime];
+  }
   return cleaned.slice(0, 120) || 'file';
 }
 
 /**
  * @param {File} file
- * @returns {'image' | 'video' | 'file'}
+ * @returns {Promise<'image' | 'video' | 'file'>}
  */
-export function detectFileAttachmentType(file) {
+async function sniffFileAttachmentType(file) {
+  try {
+    const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    if (head.length >= 3 && head[0] === 0xFF && head[1] === 0xD8 && head[2] === 0xFF) {
+      return 'image';
+    }
+    if (
+      head.length >= 8
+      && head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4E && head[3] === 0x47
+      && head[4] === 0x0D && head[5] === 0x0A && head[6] === 0x1A && head[7] === 0x0A
+    ) {
+      return 'image';
+    }
+    if (head.length >= 6) {
+      const riff = String.fromCharCode(head[0], head[1], head[2], head[3]);
+      const webp = String.fromCharCode(head[8], head[9], head[10], head[11]);
+      if (riff === 'RIFF' && webp === 'WEBP') {
+        return 'image';
+      }
+    }
+    if (
+      head.length >= 6
+      && head[0] === 0x47 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x38
+    ) {
+      return 'image';
+    }
+    if (head.length >= 12) {
+      const box = String.fromCharCode(head[4], head[5], head[6], head[7]);
+      if (box === 'ftyp') {
+        return 'video';
+      }
+    }
+  } catch {
+    /* ignore sniff errors */
+  }
+  return null;
+}
+
+/**
+ * @param {File} file
+ * @returns {Promise<'image' | 'video' | 'file'>}
+ */
+export async function detectFileAttachmentType(file) {
   const mime = (file.type ?? '').toLowerCase();
   const name = file.name ?? '';
   const fromName = inferTypeFromFilename(name);
@@ -79,6 +154,10 @@ export function detectFileAttachmentType(file) {
   }
   if (fromName) {
     return fromName;
+  }
+  const sniffed = await sniffFileAttachmentType(file);
+  if (sniffed) {
+    return sniffed;
   }
   return 'file';
 }
@@ -136,7 +215,7 @@ export function formatFileSize(bytes) {
  * @returns {string}
  */
 export function buildStoragePath(channel, messageId, threadUserId, file) {
-  const filename = safeStorageFilename(file.name);
+  const filename = safeStorageFilename(file.name, file.type);
   if (channel === 'private') {
     return `private/${threadUserId}/${messageId}/${filename}`;
   }
@@ -222,12 +301,11 @@ export async function getAttachmentSignedUrl(storagePath) {
  * @returns {boolean}
  */
 export function isStorageAttachment(msg) {
-  return Boolean(
-    msg.attachmentType
-    && msg.attachmentType !== 'video_link'
-    && msg.attachmentUrl
-    && !String(msg.attachmentUrl).includes('://'),
-  );
+  const { attachmentUrl } = normalizeAttachmentFields(msg);
+  if (!attachmentUrl || String(attachmentUrl).includes('://')) {
+    return false;
+  }
+  return resolveDisplayAttachmentType(msg) !== 'video_link';
 }
 
 /**
@@ -235,7 +313,7 @@ export function isStorageAttachment(msg) {
  * @returns {string}
  */
 export function attachmentPreviewLabel(msg) {
-  switch (msg.attachmentType) {
+  switch (resolveDisplayAttachmentType(msg)) {
     case 'image': return '📷';
     case 'video': return '🎬';
     case 'file': return '📎';
@@ -247,6 +325,7 @@ export function attachmentPreviewLabel(msg) {
 export default {
   CHAT_BUCKET,
   MAX_ATTACHMENT_BYTES,
+  normalizeAttachmentFields,
   safeStorageFilename,
   inferTypeFromFilename,
   resolveDisplayAttachmentType,

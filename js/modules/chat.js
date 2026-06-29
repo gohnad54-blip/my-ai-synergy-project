@@ -11,6 +11,7 @@ import {
   detectFileAttachmentType,
   isValidVideoLink,
   resolveDisplayAttachmentType,
+  safeStorageFilename,
   uploadChatFile,
   validateChatFile,
 } from './chat-attachments.js';
@@ -67,8 +68,8 @@ async function resolveAttachmentFields(channel, messageId, threadUserId, attachm
     await uploadChatFile(path, file);
     return {
       attachmentUrl: path,
-      attachmentType: detectFileAttachmentType(file),
-      attachmentName: file.name,
+      attachmentType: await detectFileAttachmentType(file),
+      attachmentName: file.name || safeStorageFilename(file.name, file.type),
       attachmentSize: file.size,
     };
   }
