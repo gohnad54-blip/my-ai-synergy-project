@@ -415,6 +415,90 @@ async function renderRoute(path) {
 }
 
 /**
+ * Зберігає значення полів форм перед перерендером (зміна мови).
+ * @returns {Record<string, Record<string, string | boolean>>}
+ */
+function captureFormState() {
+  /** @type {Record<string, Record<string, string | boolean>>} */
+  const state = {};
+
+  document.querySelectorAll('#app form').forEach((form) => {
+    if (!(form instanceof HTMLFormElement)) {
+      return;
+    }
+
+    const id = form.id || '__anonymous__';
+    /** @type {Record<string, string | boolean>} */
+    const fields = {};
+
+    form.querySelectorAll('input, textarea, select').forEach((el) => {
+      if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement)) {
+        return;
+      }
+
+      const name = el.name;
+      if (!name || name === 'bot-field') {
+        return;
+      }
+
+      if (el instanceof HTMLInputElement) {
+        if (el.type === 'checkbox') {
+          fields[name] = el.checked;
+        } else if (el.type === 'radio') {
+          if (el.checked) {
+            fields[name] = el.value;
+          }
+        } else {
+          fields[name] = el.value;
+        }
+      } else {
+        fields[name] = el.value;
+      }
+    });
+
+    state[id] = fields;
+  });
+
+  return state;
+}
+
+/**
+ * @param {Record<string, Record<string, string | boolean>> | null | undefined} state
+ */
+function restoreFormState(state) {
+  if (!state) {
+    return;
+  }
+
+  for (const [formId, fields] of Object.entries(state)) {
+    const form = formId === '__anonymous__'
+      ? document.querySelector('#app form')
+      : document.getElementById(formId);
+
+    if (!(form instanceof HTMLFormElement)) {
+      continue;
+    }
+
+    for (const [name, value] of Object.entries(fields)) {
+      const els = form.querySelectorAll(`[name="${CSS.escape(name)}"]`);
+      els.forEach((el) => {
+        if (el instanceof HTMLInputElement) {
+          if (el.type === 'checkbox') {
+            el.checked = value === true;
+          } else if (el.type === 'radio') {
+            el.checked = el.value === value;
+          } else {
+            el.value = String(value);
+          }
+        } else if (el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
+          el.value = String(value);
+        }
+      });
+    }
+  }
+}
+
+/**
  * Після кожного рендеру — явно прив'язує SPA-кліки в #app (fallback).
  */
 function bindSpaLinksInApp() {
@@ -476,7 +560,10 @@ window.addEventListener('app:navigate', (event) => {
 });
 
 window.addEventListener('app:localechange', () => {
-  renderRoute(normalizePath(location.pathname));
+  const formState = captureFormState();
+  void renderRoute(normalizePath(location.pathname)).then(() => {
+    restoreFormState(formState);
+  });
 });
 
 initDocumentLinkHandler();

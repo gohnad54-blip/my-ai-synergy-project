@@ -1,6 +1,6 @@
 /** Catalog page — filters, Fuse search, pagination */
 
-import { getLocale, t } from '../core/i18n.js';
+import { getCollatorLocale, t } from '../core/i18n.js';
 import {
   getMaterialTypes,
   loadPublicCatalogData,
@@ -51,7 +51,7 @@ function sortHits(list, sort) {
   if (sort === 'oldest') {
     items.sort((a, b) => (a.item.publishedAt ?? a.item.updatedAt ?? 0) - (b.item.publishedAt ?? b.item.updatedAt ?? 0));
   } else if (sort === 'title') {
-    items.sort((a, b) => (a.item.title ?? '').localeCompare(b.item.title ?? '', getLocale() === 'en' ? 'en' : 'uk'));
+    items.sort((a, b) => (a.item.title ?? '').localeCompare(b.item.title ?? '', getCollatorLocale()));
   } else {
     items.sort((a, b) => (b.item.publishedAt ?? b.item.updatedAt ?? 0) - (a.item.publishedAt ?? a.item.updatedAt ?? 0));
   }
@@ -106,7 +106,7 @@ function renderFilters() {
   if (tagRoot) {
     const tagSet = new Set();
     allMaterials.forEach((m) => (m.tags ?? []).forEach((t) => tagSet.add(t)));
-    const tags = [...tagSet].sort((a, b) => a.localeCompare(b, getLocale() === 'en' ? 'en' : 'uk'));
+    const tags = [...tagSet].sort((a, b) => a.localeCompare(b, getCollatorLocale()));
 
     tagRoot.innerHTML = tags.length
       ? tags.map((tag) => `

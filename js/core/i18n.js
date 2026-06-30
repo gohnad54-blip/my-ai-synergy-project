@@ -3,11 +3,17 @@
 const STORAGE_KEY = 'locale';
 const DEFAULT_LOCALE = 'uk';
 
-/** @type {'uk' | 'en'} */
+/** @type {readonly ['uk', 'en', 'de']} */
+export const SUPPORTED_LOCALES = ['uk', 'en', 'de'];
+
+/** @type {'uk' | 'en' | 'de'} */
 let currentLocale = DEFAULT_LOCALE;
 
 /** @type {Record<string, string>} */
 let messages = {};
+
+/** @type {Record<string, string>} */
+let fallbackMessages = {};
 
 /** @type {Promise<void> | null} */
 let initPromise = null;
@@ -15,8 +21,23 @@ let initPromise = null;
 /** @type {boolean} */
 let switcherBound = false;
 
+/** @type {Record<'uk' | 'en' | 'de', string>} */
+const HTML_LANG = {
+  uk: 'uk',
+  en: 'en',
+  de: 'de',
+};
+
 /**
- * @param {'uk' | 'en'} locale
+ * @param {string} locale
+ * @returns {locale is 'uk' | 'en' | 'de'}
+ */
+function isSupportedLocale(locale) {
+  return SUPPORTED_LOCALES.includes(/** @type {'uk' | 'en' | 'de'} */ (locale));
+}
+
+/**
+ * @param {'uk' | 'en' | 'de'} locale
  * @returns {Promise<Record<string, string>>}
  */
 async function fetchMessages(locale) {
@@ -25,6 +46,36 @@ async function fetchMessages(locale) {
     throw new Error(`Failed to load locale: ${locale}`);
   }
   return response.json();
+}
+
+/**
+ * @returns {Promise<Record<string, string>>}
+ */
+async function ensureFallbackMessages() {
+  if (Object.keys(fallbackMessages).length > 0) {
+    return fallbackMessages;
+  }
+  fallbackMessages = await fetchMessages('uk');
+  return fallbackMessages;
+}
+
+/**
+ * @param {'uk' | 'en' | 'de'} locale
+ * @returns {Promise<Record<string, string>>}
+ */
+async function loadMessagesForLocale(locale) {
+  await ensureFallbackMessages();
+  if (locale === 'uk') {
+    return fallbackMessages;
+  }
+  return fetchMessages(locale);
+}
+
+/**
+ * @param {'uk' | 'en' | 'de'} locale
+ */
+function applyDocumentLang(locale) {
+  document.documentElement.lang = HTML_LANG[locale] ?? 'uk';
 }
 
 /**
@@ -52,7 +103,15 @@ function enMaterialLabel(n) {
 }
 
 /**
- * @returns {'uk' | 'en'}
+ * @param {number} n
+ * @returns {string}
+ */
+function deMaterialLabel(n) {
+  return n === 1 ? t('material.countOne') : t('material.countMany');
+}
+
+/**
+ * @returns {'uk' | 'en' | 'de'}
  */
 export function getLocale() {
   return currentLocale;
@@ -62,7 +121,29 @@ export function getLocale() {
  * @returns {string}
  */
 export function getDateLocale() {
-  return currentLocale === 'en' ? 'en-US' : 'uk-UA';
+  switch (currentLocale) {
+    case 'en':
+      return 'en-US';
+    case 'de':
+      return 'de-DE';
+    default:
+      return 'uk-UA';
+  }
+}
+
+/**
+ * Locale tag for sorting and collation.
+ * @returns {string}
+ */
+export function getCollatorLocale() {
+  switch (currentLocale) {
+    case 'en':
+      return 'en';
+    case 'de':
+      return 'de';
+    default:
+      return 'uk';
+  }
 }
 
 /**
@@ -72,10 +153,10 @@ export async function initI18n() {
   if (!initPromise) {
     initPromise = (async () => {
       const saved = localStorage.getItem(STORAGE_KEY);
-      const locale = saved === 'en' ? 'en' : DEFAULT_LOCALE;
-      messages = await fetchMessages(locale);
+      const locale = saved && isSupportedLocale(saved) ? saved : DEFAULT_LOCALE;
+      messages = await loadMessagesForLocale(locale);
       currentLocale = locale;
-      document.documentElement.lang = locale === 'uk' ? 'uk' : 'en';
+      applyDocumentLang(locale);
     })();
   }
   return initPromise;
@@ -89,11 +170,18 @@ export async function initI18n() {
 export function t(key, params) {
   if (key === 'material.count' && params && typeof params.n === 'number') {
     const n = params.n;
-    const label = currentLocale === 'en' ? enMaterialLabel(n) : ukMaterialLabel(n);
+    const label = currentLocale === 'en'
+      ? enMaterialLabel(n)
+      : currentLocale === 'de'
+        ? deMaterialLabel(n)
+        : ukMaterialLabel(n);
     return `${n} ${label}`;
   }
 
   let text = messages[key];
+  if (text === undefined) {
+    text = fallbackMessages[key];
+  }
   if (text === undefined) {
     console.warn(`[i18n] Missing key: ${key}`);
     return key;
@@ -109,11 +197,11 @@ export function t(key, params) {
 }
 
 /**
- * @param {'uk' | 'en'} locale
+ * @param {'uk' | 'en' | 'de'} locale
  * @returns {Promise<void>}
  */
 export async function setLocale(locale) {
-  if (locale !== 'uk' && locale !== 'en') {
+  if (!isSupportedLocale(locale)) {
     return;
   }
 
@@ -121,10 +209,10 @@ export async function setLocale(locale) {
     return;
   }
 
-  messages = await fetchMessages(locale);
+  messages = await loadMessagesForLocale(locale);
   currentLocale = locale;
   localStorage.setItem(STORAGE_KEY, locale);
-  document.documentElement.lang = locale === 'uk' ? 'uk' : 'en';
+  applyDocumentLang(locale);
 
   applyToDOM();
   updateLangSwitcherUI();
@@ -137,10 +225,12 @@ export async function setLocale(locale) {
  */
 export function renderLangSwitcherHtml() {
   return `
-    <div class="lang-switcher flex items-center gap-1 text-sm" role="group" aria-label="${t('lang.label')}">
+    <div class="lang-switcher flex flex-wrap items-center gap-1 text-sm" role="group" aria-label="${t('lang.label')}">
       <button type="button" data-lang="uk" class="lang-btn rounded px-1.5 py-0.5 transition hover:text-neural-glow">UA</button>
       <span class="text-dim-text" aria-hidden="true">|</span>
       <button type="button" data-lang="en" class="lang-btn rounded px-1.5 py-0.5 transition hover:text-neural-glow">EN</button>
+      <span class="text-dim-text" aria-hidden="true">|</span>
+      <button type="button" data-lang="de" class="lang-btn rounded px-1.5 py-0.5 transition hover:text-neural-glow">DE</button>
     </div>
   `;
 }
@@ -150,11 +240,12 @@ export function renderLangSwitcherHtml() {
  */
 export function mountLangSwitcher() {
   document.querySelectorAll('#lang-switcher-slot, #dashboard-lang-switcher-slot, #dashboard-lang-switcher-slot-mobile').forEach((slot) => {
-    if (!(slot instanceof HTMLElement) || slot.dataset.mounted === 'true') {
+    if (!(slot instanceof HTMLElement)) {
       return;
     }
-    slot.dataset.mounted = 'true';
+    slot.dataset.mounted = 'false';
     slot.innerHTML = renderLangSwitcherHtml();
+    slot.dataset.mounted = 'true';
   });
 }
 
@@ -196,7 +287,7 @@ export function initLangSwitcher() {
       return;
     }
     const lang = btn.getAttribute('data-lang');
-    if (lang !== 'uk' && lang !== 'en') {
+    if (!lang || !isSupportedLocale(lang)) {
       return;
     }
     if (lang === currentLocale) {
@@ -245,10 +336,12 @@ export function applyToDOM() {
 }
 
 export default {
+  SUPPORTED_LOCALES,
   initI18n,
   setLocale,
   getLocale,
   getDateLocale,
+  getCollatorLocale,
   t,
   applyToDOM,
   mountLangSwitcher,
