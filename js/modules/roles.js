@@ -60,6 +60,14 @@ export const PERMISSION_GROUPS = [
     ],
   },
   {
+    id: 'chat',
+    label: 'ЧАТ',
+    permissions: [
+      { id: 'polls.create', label: 'Створення опитувань у груповому чаті' },
+      { id: 'polls.view_voters', label: 'Перегляд хто як голосував' },
+    ],
+  },
+  {
     id: 'system',
     label: 'СИСТЕМА',
     permissions: [

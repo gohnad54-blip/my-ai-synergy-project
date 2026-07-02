@@ -27,6 +27,8 @@ import {
 import { refreshChatBadges } from '../../ui/chat-badges.js';
 import { buildChatMessagesHtml, bindChatImageLightbox } from '../../ui/chat-attachments.js';
 import { bindReactions } from '../../ui/reactions.js';
+import { mountGroupPollWidgets, openCreatePollModal } from '../../ui/polls.js';
+import { canCreatePolls } from '../../modules/polls.js';
 import { closeModal, confirmModal, showModal } from '../../ui/modal.js';
 import { showToast } from '../../ui/toast.js';
 
@@ -148,6 +150,12 @@ async function renderMessageBubbles(messages, mode) {
 }
 
 function renderComposer() {
+  const showPoll = activeTab === 'group' && canCreatePolls();
+  const pollBtn = canCreatePolls()
+    ? `<button type="button" id="chat-create-poll" title="${escapeHtml(t('polls.createTitle'))}"
+        class="${showPoll ? '' : 'hidden '}rounded-lg border border-pulse-violet/30 px-2.5 py-2 text-base hover:border-neural-glow">📊</button>`
+    : '';
+
   return `
     <div id="chat-pending-attachment" class="hidden shrink-0 px-3 pt-2"></div>
     <form id="chat-compose-form" class="flex shrink-0 items-end gap-2 border-t border-pulse-violet/20 p-3">
@@ -156,6 +164,7 @@ function renderComposer() {
           class="rounded-lg border border-pulse-violet/30 px-2.5 py-2 text-base hover:border-neural-glow">📎</button>
         <button type="button" id="chat-attach-link" title="${escapeHtml(t('chat.attachVideoLink'))}"
           class="rounded-lg border border-pulse-violet/30 px-2.5 py-2 text-base hover:border-neural-glow">🔗</button>
+        ${pollBtn}
       </div>
       <input type="file" id="chat-file-input" class="hidden"
         accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt">
@@ -278,6 +287,23 @@ async function renderPrivatePane(ctx) {
   scrollMessagesToBottom(messagesEl);
 }
 
+async function refreshGroupPolls() {
+  const messagesEl = document.getElementById('chat-messages');
+  if (!messagesEl || activeTab !== 'group') {
+    return;
+  }
+
+  const messages = await getGroupMessages();
+  await mountGroupPollWidgets(messagesEl, messages, refreshGroupPolls);
+}
+
+function syncPollButtonVisibility() {
+  const btn = document.getElementById('chat-create-poll');
+  if (btn instanceof HTMLElement) {
+    btn.classList.toggle('hidden', activeTab !== 'group' || !canCreatePolls());
+  }
+}
+
 async function renderGroupPane() {
   const messages = await getGroupMessages();
   await markGroupRead();
@@ -298,6 +324,7 @@ async function renderGroupPane() {
 
   bindChatImageLightbox(messagesEl);
   bindGroupDeleteHandlers(messagesEl);
+  await refreshGroupPolls();
   scrollMessagesToBottom(messagesEl);
 }
 
@@ -452,6 +479,7 @@ async function buildLayout(ctx) {
         : `/dashboard/chat?tab=private${activeThreadUserId && isAdmin() ? `&user=${encodeURIComponent(activeThreadUserId)}` : ''}`;
       window.history.replaceState(null, '', url);
       updateTabStyles();
+      syncPollButtonVisibility();
       stickToBottom = true;
       await refreshActivePane(ctx);
     });
@@ -462,6 +490,13 @@ async function buildLayout(ctx) {
   });
 
   document.getElementById('chat-attach-link')?.addEventListener('click', openVideoLinkModal);
+
+  document.getElementById('chat-create-poll')?.addEventListener('click', () => {
+    openCreatePollModal(async () => {
+      stickToBottom = true;
+      await renderGroupPane();
+    });
+  });
 
   document.getElementById('chat-file-input')?.addEventListener('change', (e) => {
     const input = /** @type {HTMLInputElement} */ (e.target);
@@ -520,6 +555,7 @@ async function buildLayout(ctx) {
   });
 
   await refreshActivePane(ctx);
+  syncPollButtonVisibility();
 }
 
 function updateTabStyles() {
@@ -530,6 +566,7 @@ function updateTabStyles() {
     btn.classList.toggle('text-neural-glow', on);
     btn.classList.toggle('text-dim-text', !on);
   });
+  syncPollButtonVisibility();
 }
 
 function startPolling(ctx) {
